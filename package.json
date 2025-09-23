@@ -1,0 +1,17 @@
+{
+  "name": "cypress-demo",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "e2e-flow": "npx cypress run --spec cypress/e2e/oms/create_order.cy.js && npx cypress run --spec cypress/e2e/wms/export_order.cy.js && npx cypress run --spec cypress/e2e/wms/scan_order.cy.js && npx cypress run --spec cypress/e2e/wms/packing_order.cy.js",
+    "e2e-flow:ui": "npx cypress open --e2e --browser chrome"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "cypress": "^14.5.4"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "omsUrl": "https://stg-oms.nandh.vn",
+  "omsUser": "thanh.nn@nandh.vn",
+  "omsPassword": "Nhl@12345",
+  
+  
+  "wmsUrl": "https://stg-wms.nandh.vn",
+  "wmsUser": "thanh.nn@nandh.vn",
+  "wmsPassword": "Nhl@12345",
+  "warehouse_id": 34,
+  "tenFC": "FC HCM",
+
+  "opsUrl": "https://stg-ops.nandh.vn",
+  "opsUser": "thanh.nn@nandh.vn",
+  "opsPassword": "Nhl@12345",
+
+
+  "comment": "Tạo sản phẩm B2C",
+  "skuSanPham": "BGN",
+  "loaiHangHoa": "A",
+
+  "comment1": "Mã bàn",
+  "packing_table": "BAN-01",
+
+  "comment2": "Mã kiện",
+  "maKien": "PN00001",
+
+  "comment3": "Sản phẩm nhập hàng",
+  "productsInbound": [
+    { "name": "BGN", "qty": 1000 },
+    { "name": "CGN", "qty": 1000 }
+  ],
+  "warehouse": "HCM Warehouse",
+  "omsSupplier": "BanDaiVN",
+
+  "comment4": "Tạo đơn B2B",
+  "products": [
+    { "name": "CGN", "qty": 30 },
+    { "name": "BGN", "qty": 30 }
+  ],
+  "comment4.1": "Cho số quantity_sold = với qty của product để lấy hàng cho đúng",
+  "quantity_sold": 30
+}
+
