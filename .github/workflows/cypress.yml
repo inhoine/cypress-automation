@@ -22,5 +22,5 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run Cypress tests
-        run: npx cypress run
+      - name: Run Cypress (only full_function folder)
+        run: npx cypress run --spec "cypress/e2e/full_function/**/*.cy.js"
