@@ -2,6 +2,8 @@
   "omsUrl": "https://stg-oms.nandh.vn",
   "omsUser": "thanh.nn@nandh.vn",
   "omsPassword": "Nhl@12345",
+  "nntBusiness": "BS270X100379",
+  "trashBusiness": "BS270X100372",
   
   
   "wmsUrl": "https://stg-wms.nandh.vn",
@@ -15,7 +17,7 @@
   "opsPassword": "Nhl@12345",
 
 
-  "comment": "Tạo sản phẩm B2C",
+  "comment": "Tạo đơn hàng B2C",
   "skuSanPham": "BGN",
   "loaiHangHoa": "A",
 

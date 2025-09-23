@@ -5,7 +5,9 @@ describe("Nhập kho", () => {
     cy.fixture("config.json").then((data) => {
       config = data;
     });
-    cy.loginOMS();
+    cy.loginOMS().then(() => {
+      cy.selectNNTBusiness();
+    });
   });
 
   function chonKhoNhapHang() {

@@ -11,7 +11,9 @@ describe("OMS - Tạo đơn & tạo vận đơn", () => {
     cy.fixture("config.json").then((data) => {
       config = data;
     });
-    cy.loginOMS();
+    cy.loginOMS().then(() => {
+      cy.selectNNTBusiness();
+    });
     cy.visit("https://stg-oms.nandh.vn/orders-b2b");
   });
 

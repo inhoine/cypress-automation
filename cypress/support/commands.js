@@ -36,6 +36,19 @@ Cypress.Commands.add("loginOMS", () => {
   });
 });
 
+Cypress.Commands.add("selectTrashBusiness", () => {
+  cy.fixture("config").then((config) => {
+    cy.get("p.user-name-text").contains("Doanh nghiệp").click();
+    cy.get('button[type="button"]').contains(config.trashBusiness).click();
+  });
+});
+Cypress.Commands.add("selectNNTBusiness", () => {
+  cy.fixture("config").then((config) => {
+    cy.get("p.user-name-text").contains("Doanh nghiệp").click();
+    cy.get('button[type="button"]').contains(config.nntBusiness).click();
+  });
+});
+
 Cypress.Commands.add("loginWMS", () => {
   cy.fixture("config").then((config) => {
     cy.visit(config.wmsUrl + "/login");

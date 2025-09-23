@@ -13,7 +13,9 @@ describe("Tạo sản phẩm và kiểm tra", () => {
       config = data;
     });
     // Đăng nhập trước khi truy cập trang
-    cy.loginOMS();
+    cy.loginOMS().then(() => {
+      cy.selectTrashBusiness();
+    });
   });
 
   // Các hàm nhập liệu để tạo sản phẩm
@@ -27,9 +29,7 @@ describe("Tạo sản phẩm và kiểm tra", () => {
 
   function chonNhanHang() {
     cy.contains("div", "Chọn nhãn hàng").click({ force: true });
-    cy.get('#react-select-2-listbox [role="option"]')
-      .contains("BanDai")
-      .click();
+    cy.get('#react-select-2-listbox [role="option"]').contains("DK").click();
     cy.wait(1000);
   }
 
@@ -201,7 +201,7 @@ describe("Duyệt đơn OPS", () => {
     cy.get('button[type="button"]').contains("Xác nhận").click();
   }
 
-  it("Tạo đơn OMS -> tạo vận đơn -> lưu mã ra fixtures", () => {
+  it("Tạo sản phẩm OMS -> Duyệt sản phẩm OPS", () => {
     chonKhachHangOPS();
     timSKU();
     duyetSKU();
