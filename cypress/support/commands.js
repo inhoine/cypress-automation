@@ -54,7 +54,7 @@ Cypress.Commands.add("loginWMS", () => {
     cy.visit(config.wmsUrl + "/login");
     cy.get('input[name="email"]').type(config.wmsUser);
     cy.get('input[name="password"]').type(config.wmsPassword);
-    cy.get('button[type="submit"]').click();
+    cy.get(".mt-4 > .btn").contains("Đăng nhập").click();
     cy.wait(1000);
     cy.get("div.col-4.col-wh.col")
       .contains(config.tenFC)
@@ -94,7 +94,7 @@ Cypress.Commands.add("addStorage", () => {
       .click({ force: true });
 
     // Random number
-    const randomNumber = Math.floor(Math.random() * 1000); // 0 -> 999
+    const randomNumber = Date.now(); // 0 -> 999
     const trolleyCode = `NNT${randomNumber}`;
 
     cy.get('input[name="trolley_code"]').type(trolleyCode);

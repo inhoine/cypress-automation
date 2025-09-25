@@ -12,10 +12,7 @@ describe("Duyệt đơn OPS", () => {
     cy.fixture("config.json").then((data) => {
       config = data;
     });
-    // Đăng nhập trước khi truy cập trang
-    cy.loginOPS().then(() => {
-      cy.visit(`${config.opsUrl}/products`);
-    });
+    // Đăng nhập trước khi truy cập tran
 
     // Đọc SKU từ file fixtures
     cy.fixture("sku.json").then((data) => {
@@ -26,8 +23,11 @@ describe("Duyệt đơn OPS", () => {
   // helper gắn banner vào UI
 
   it("Tạo đơn OMS -> tạo vận đơn -> lưu mã ra fixtures", () => {
-    cy.addStepBanner("Ghé trang sản phẩm OPS");
-    cy.visit(`${config.opsUrl}/products`);
-    cy.addStepBanner("Đã ghé trang thành công");
+    cy.visit(config.wmsUrl + "/login");
+    cy.get('input[name="email"]').type(config.wmsUser);
+    cy.get('input[name="password"]').type(config.wmsPassword);
+    cy.get('button[type="submit"]')
+      .contains("Đăng nhập")
+      .click({ force: true });
   });
 });

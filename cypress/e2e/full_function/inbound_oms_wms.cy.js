@@ -93,7 +93,7 @@ describe("Nhập kho", () => {
 describe("Inbound WMS", () => {
   let config;
   // Tải file config.json một lần duy nhất trước khi chạy test
-  before(() => {
+  beforeEach(() => {
     cy.fixture("config.json").then((data) => {
       config = data;
     });
