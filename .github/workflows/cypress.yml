@@ -17,5 +17,5 @@ jobs:
       - name: Run Cypress (only full_function folder)
         uses: cypress-io/github-action@v6
         with:
-          browser: chrome
+          browser: electron
           spec: cypress/e2e/full_function/**/*.cy.js

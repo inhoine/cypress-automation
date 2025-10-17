@@ -1,0 +1,84 @@
+[
+    { "url": "https://stg-oms.nandh.vn/dashboard?" },
+    { "url": "https://stg-oms.nandh.vn/operation-dashboard?" },
+    { "url": "https://stg-oms.nandh.vn/report?" },
+
+    { "url": "https://stg-oms.nandh.vn/inventory-product-management?" },
+    { "url": "https://stg-oms.nandh.vn/create-inventory-product" },
+    { "url": "https://stg-oms.nandh.vn/import-create-inventory" },
+    { "url": "https://stg-oms.nandh.vn/import-product-inventory" },
+
+    { "url": "https://stg-oms.nandh.vn/product-management?" },
+    { "url": "https://stg-oms.nandh.vn/create-product" },
+    { "url": "https://stg-oms.nandh.vn/create-combo-product" },
+    { "url": "https://stg-oms.nandh.vn/import-create-product-online" },
+    { "url": "https://stg-oms.nandh.vn/import-combo-product" },
+    { "url": "https://stg-oms.nandh.vn/sync-product" },
+    { "url": "https://stg-oms.nandh.vn/unreal-stock-configs?" },
+    { "url": "https://stg-oms.nandh.vn/stock-sync-locks?" },
+
+
+    { "url": "https://stg-oms.nandh.vn/stock-adjustment?" },
+    { "url": "https://stg-oms.nandh.vn/create-stock" },
+    { "url": "https://stg-oms.nandh.vn/stock-adjustment/bulk-edit" },
+    { "url": "https://stg-oms.nandh.vn/stock-sync" },
+
+    { "url": "https://stg-oms.nandh.vn/collection-list?" },
+    { "url": "https://stg-oms.nandh.vn/create-collection" },
+
+    { "url": "https://stg-oms.nandh.vn/promotion-list?" },
+    { "url": "https://stg-oms.nandh.vn/create-promotion" },
+    { "url": "https://stg-oms.nandh.vn/promotion-list?" },
+
+    { "url": "https://stg-oms.nandh.vn/list-shipment-inbound?" },
+    { "url": "https://stg-oms.nandh.vn/create-shipment-inbound" },
+
+    { "url": "https://stg-oms.nandh.vn/vendors-management?" },
+
+    { "url": "https://stg-oms.nandh.vn/orders-b2c?" },
+    { "url": "https://stg-oms.nandh.vn/create-order-b2c" },
+    { "url": "https://stg-oms.nandh.vn/import-create-order-b2c" },
+
+    { "url": "https://stg-oms.nandh.vn/orders-b2b?" },
+    { "url": "https://stg-oms.nandh.vn/create-order-b2b" },
+    { "url": "https://stg-oms.nandh.vn/import-create-order-b2b" },
+
+    { "url": "https://stg-oms.nandh.vn/customers-management?" },
+    { "url": "https://stg-oms.nandh.vn/create-customer" },
+    { "url": "https://stg-oms.nandh.vn/update-customer/496" },
+
+    { "url": "https://stg-oms.nandh.vn/fail-delivery-list?" },
+    { "url": "https://stg-oms.nandh.vn/fail-delivery-detail/NHSVC2701569246" },
+
+    { "url": "https://stg-oms.nandh.vn/return-order-b2c-list?" },
+    { "url": "https://stg-oms.nandh.vn/return-order-create" },
+    { "url": "https://stg-oms.nandh.vn/bulk-create-b2c-return-orders" },
+    { "url": "https://stg-oms.nandh.vn/return-order/NHRVC2709481269" },
+
+    { "url": "https://stg-oms.nandh.vn/return-order-b2b-list?" },
+    { "url": "https://stg-oms.nandh.vn/create-return-shipment" },
+    { "url": "https://stg-oms.nandh.vn/shipment-inbound-b2b/NHRVB2701043372" },
+
+    { "url": "https://stg-oms.nandh.vn/shipment-list?" },
+    { "url": "https://stg-oms.nandh.vn/shipment-detail/NHSVC2701957810" },
+
+    { "url": "https://stg-oms.nandh.vn/video-list?" },
+
+    { "url": "https://stg-oms.nandh.vn/page-setting?type=configuration_brand" },
+    { "url": "https://stg-oms.nandh.vn/page-setting?type=personal_category" },
+    { "url": "https://stg-oms.nandh.vn/page-setting?type=configuration_unit" },
+    { "url": "https://stg-oms.nandh.vn/page-setting?type=configuration_box" },
+
+    { "url": "https://stg-oms.nandh.vn/page-setting?type=print_settings" },
+
+    { "url": "https://stg-oms.nandh.vn/page-setting?type=configuration_delivery" },
+
+    { "url": "https://stg-oms.nandh.vn/page-setting?type=pickup-address" },
+    
+    { "url": "https://stg-oms.nandh.vn/channel-management?" },
+
+    { "url": "https://stg-oms.nandh.vn/automations?tab=customer_rules" },
+    { "url": "https://stg-oms.nandh.vn/create-customer-rule" }
+
+    
+]
