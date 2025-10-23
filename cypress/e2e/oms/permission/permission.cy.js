@@ -6,9 +6,9 @@ describe("Check permission redirect", () => {
       this.urls = data;
     });
 
-    cy.visit("https://stg-oms.nandh.vn/login");
-    cy.get('input[name="email"]').type("staffnh1@mailinator.com");
-    cy.get('input[name="password"]').type("Nhl@2025");
+    cy.visit("https://oms.nandh.vn/");
+    cy.get('input[name="email"]').type("khanh_an08@yahoo.com");
+    cy.get('input[name="password"]').type("An123456@");
     cy.get('button[type="submit"]').click();
     cy.wait(2000);
   });
