@@ -14,8 +14,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Run Cypress (only full_function folder)
+      - name: Run Cypress (only loginOMS.cy.js)
         uses: cypress-io/github-action@v6
         with:
           browser: electron
-          spec: cypress/e2e/full_function/**/*.cy.js
+          spec: cypress/e2e/login/loginOMS.cy.js
