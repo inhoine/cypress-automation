@@ -331,6 +331,7 @@ describe("Scan QR", () => {
                           });
                         });
                     })
+                    // --- Conmmit status ---
                     .then(() => {
                       return cy
                         .request({
@@ -428,7 +429,7 @@ describe("Đóng gói từng qty", () => {
             const $input = $body.find('input[placeholder="Quét mã sản phẩm"]');
 
             if ($input.length > 0) {
-              cy.wait(500);
+              cy.wait(400);
               cy.get('input[placeholder="Quét mã sản phẩm"]')
                 .type(products.name)
                 .type("{enter}");

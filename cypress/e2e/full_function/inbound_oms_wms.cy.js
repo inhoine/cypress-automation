@@ -41,15 +41,9 @@ describe("Nhập kho", () => {
     cy.get('input[name="listPackage.0.packageWeight"]')
       .type("20")
       .should("have.value", "20");
-    cy.get('input[name="listPackage.0.packageLength"]')
-      .type("10")
-      .should("have.value", "10");
-    cy.get('input[name="listPackage.0.packageWidth"]')
-      .type("10")
-      .should("have.value", "10");
-    cy.get('input[name="listPackage.0.packageHeight"]')
-      .type("10")
-      .should("have.value", "10");
+    cy.get('input[placeholder="Dài"]').type("10");
+    cy.get('input[placeholder="Rộng"]').type("10");
+    cy.get('input[placeholder="Cao"]').type("10");
 
     const productsInbound = config.productsInbound;
     cy.contains("Thêm sản phẩm").click({ force: true });

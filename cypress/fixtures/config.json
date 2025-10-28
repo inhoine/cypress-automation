@@ -29,8 +29,7 @@
 
   "comment3": "Sản phẩm nhập hàng",
   "productsInbound": [
-    { "name": "BGN", "qty": 1000 },
-    { "name": "CGN", "qty": 1000 }
+    { "name": "YELLOWCAR", "qty": 4}
   ],
   "warehouse": "HCM Warehouse",
   "omsSupplier": "BanDaiVN",

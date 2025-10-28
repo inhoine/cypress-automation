@@ -1,5 +1,6 @@
 const { defineConfig } = require("cypress");
 const fs = require("fs");
+const xlsx = require("xlsx");
 const path = require("path");
 
 module.exports = defineConfig({
@@ -7,6 +8,13 @@ module.exports = defineConfig({
     setupNodeEvents(on, config) {
       // Ghi file kết quả CSV
       on("task", {
+        readXlsx({ file, sheet }) {
+          const buf = fs.readFileSync(file);
+          const workbook = xlsx.read(buf, { type: "buffer" });
+          // Chuyển đổi sheet thành JSON
+          const rows = xlsx.utils.sheet_to_json(workbook.Sheets[sheet]);
+          return rows;
+        },
         writeResults({
           relativeDir = "cypress/results",
           filename = "results.csv",
