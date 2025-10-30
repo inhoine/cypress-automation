@@ -179,28 +179,37 @@ describe("Tạo sản phẩm tồn kho", () => {
     // Bước 1: Nhập tên chiến lược vào trường input và nhấn Enter
     cy.get("input[id=react-select-7-input]").type(outboundName).type("{enter}");
 
-    handleOutboundStrategy(outboundName);
-    inOutboundDeadline("Theo ngày", 180, 30);
+    if (outboundName.toLowerCase() === "hết hạn trước") {
+      handleOutboundStrategy();
+      inOutboundDeadline("Theo ngày", 180, 30);
+    } else {
+      cy.log("Khác hết hạn trước nên không cần nhập");
+    }
+  }
+
+  function buttonConfirm() {
+    cy.get("button[type='button']").contains("Xác nhận").click();
   }
 
   it("Tạo sản phẩm tồn kho", () => {
-    // sku("SKU-" + Date.now());
-    // barcode();
-    // addBarcode(Date.now());
-    // name("SP-" + Date.now());
-    // brand("DK");
-    // category("Khác");
-    // addImage();
-    // price(100000, 100000);
-    // describe("Mô tả có tâm");
-    // btnVariant();
-    // inputVariant("Color", "Red", "SKU-" + Date.now(), 100000);
-    // demension(20, 20, 20, 20);
-    // selectStorageOption("lot");
-    // productType("Quà tặng");
-    // unit("Cái");
-    // storerageCondition("Kho mát");
-    // stockWarning(20);
-    outboundStrategy("Hết hạn trước");
+    sku("SKU-" + Date.now());
+    barcode();
+    addBarcode(Date.now());
+    name("SP-" + Date.now());
+    brand("DK");
+    category("Khác");
+    addImage();
+    price(100000, 100000);
+    describe("Mô tả có tâm");
+    btnVariant();
+    inputVariant("Color", "Red", "SKU-" + Date.now(), 100000);
+    demension(20, 20, 20, 20);
+    selectStorageOption("lot");
+    productType("Vật lý");
+    unit("Cái");
+    storerageCondition("Kho thường");
+    stockWarning(20);
+    outboundStrategy("Nhập trước");
+    buttonConfirm();
   });
 });

@@ -102,7 +102,7 @@ describe("OMS - Tạo đơn & tạo vận đơn", () => {
     chonKhachHang();
     chonKenhBanHang();
     chonDiaChiLayHang();
-    chonSanPhamTheoTen("Bình giữ nhiệt");
+    chonSanPhamTheoTen("Gao Muscle");
 
     nhapMaThamChieu().then(() => {
       nhapTiepTuc();

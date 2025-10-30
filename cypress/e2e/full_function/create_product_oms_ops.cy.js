@@ -14,7 +14,8 @@ describe("Tạo sản phẩm và kiểm tra", () => {
     });
     // Đăng nhập trước khi truy cập trang
     cy.loginOMS().then(() => {
-      cy.selectTrashBusiness();
+      // cy.selectTrashBusiness();
+      cy.log("Login thành công");
     });
   });
 
