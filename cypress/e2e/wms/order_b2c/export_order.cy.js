@@ -40,266 +40,241 @@ describe("WMS - Xuất kho từ đơn OMS", () => {
     cy.get("button.btn-success").contains("Tạo bảng kê").click();
   }
 
+  const maDonHang = "NHSVC2949331283, NHSVC2941129576";
+
   function layHang() {
-    cy.fixture("config").then((config) => {
-      // Tạo trolley và lưu vào file
-      cy.addStorage();
-      cy.readFile("cypress/temp/maDonHang.json").then(({ trolleyCode }) => {
-        cy.intercept("GET", "**/v1/pickup/list*status_id=600*").as(
-          "getPickupList600"
+  return cy.fixture("config").then((config) => {
+    cy.addStorage();
+
+    return cy.readFile("cypress/temp/maDonHang.json").then(({ trolleyCode }) => {
+      cy.intercept("GET", "**/v1/pickup/list*status_id=600*").as("getPickupList600");
+      cy.visit(`${config.wmsUrl}/pickup-list`);
+
+      return cy.wait("@getPickupList600").then(({ response }) => {
+        const list = response.body.data || [];
+        const found = list.find((x) =>
+          x.picking_strategy?.list_tracking_code?.some((code) => maDonHang.includes(code))
         );
+        expect(found, "Tìm thấy đơn hàng có tracking_code").to.not.be.undefined;
 
-        cy.visit(`${config.wmsUrl}/pickup-list`);
-        cy.wait("@getPickupList600").then(({ response }) => {
-          const list = response.body.data;
-          const found = list.find((x) =>
-            x.picking_strategy?.list_tracking_code?.some((code) =>
-              maDonHang.includes(code)
-            )
-          );
+        const pickupCode = found.pickup_code;
+        cy.log(`📦 Found pickupCode: ${pickupCode}`);
 
-          expect(found, "Tìm thấy đơn hàng có tracking_code").to.not.be
-            .undefined;
+        // Ghi file
+        return cy.readFile("cypress/temp/maDonHang.json").then((data) => {
+          cy.writeFile("cypress/temp/maDonHang.json", { ...data, pickupCode });
 
-          const pickupCode = found.pickup_code;
-
-          // Lưu pickupCode vào file JSON
-          cy.readFile("cypress/temp/maDonHang.json").then((data) => {
-            cy.writeFile("cypress/temp/maDonHang.json", {
-              ...data,
-              pickupCode,
-            });
-          });
-
-          // // --- Gọi API mobile ---
-          cy.loginMobileAPI().then(() => {
+          // Login mobile
+          return cy.loginMobileAPI().then(() => {
             const mobileToken = Cypress.env("mobileToken");
 
-            //   // --- Vòng lặp map trolley ---
             function tryMapTrolley(retries = 36) {
-              if (retries <= 0) {
-                throw new Error("Map trolley không thành công sau 3 phút");
-              }
+              if (retries <= 0) throw new Error("❌ Map trolley không thành công sau 3 phút");
 
+              cy.log(`🔄 Đang map trolley (còn ${retries} lần thử)...`);
               return cy
                 .request({
                   method: "PUT",
                   url: `${config.wmsUrl}/v1/trolley/trolley-map-picking/${pickupCode}`,
                   headers: {
-                    authorization: mobileToken,
-                    accept: "application/json",
-                    "content-type": "application/json",
+                    Authorization: mobileToken,
+                    Accept: "application/json",
+                    "Content-Type": "application/json",
                   },
-                  body: {
-                    trolley_code: trolleyCode, // ✅ lấy từ file
-                    skip_trolley_code: false,
-                  },
+                  body: { trolley_code: trolleyCode, skip_trolley_code: false },
                   failOnStatusCode: false,
                 })
                 .then((resp) => {
                   if (resp.status === 200) {
                     cy.log("✅ Map trolley thành công");
-                    return;
+                    return cy.wrap(true);
                   } else {
-                    cy.log(`⚠️ Map trolley fail (${resp.status}), thử lại...`);
                     cy.wait(10000);
                     return tryMapTrolley(retries - 1);
                   }
                 });
             }
 
-            // --- Lấy bin_code ---
-            tryMapTrolley()
-              .then(() => {
-                return cy.request({
+            // Chain return toàn bộ
+            return tryMapTrolley().then(() => {
+              cy.log("🗂️ Lấy danh sách bin...");
+              return cy
+                .request({
                   method: "GET",
                   url: `${config.wmsUrl}/v1/trolley/binset/${pickupCode}?is_issue=-1`,
                   headers: {
                     Authorization: `Bearer ${mobileToken}`,
-                    Accept: "application/json",
-                    "Content-Type": "application/json",
                   },
-                });
-              })
-              .then((response) => {
-                const binCodes = response.body.data.map(
-                  (item) => item.bin_code
-                );
-                cy.wrap(binCodes)
-                  .each((bin) => {
+                })
+                .then((response) => {
+                  const binCodes = response.body.data.map((i) => i.bin_code);
+                  cy.log(`📦 Có ${binCodes.length} bin cần xử lý`);
+
+                  // Duyệt bin
+                  return cy.wrap(binCodes).each((bin) => {
+                    cy.log(`🧩 Bin: ${bin}`);
                     return cy
                       .request({
                         method: "GET",
                         url: `${config.wmsUrl}/v1/trolley/picking/${pickupCode}?bin_code=${bin}`,
-                        headers: {
-                          Authorization: `Bearer ${mobileToken}`,
-                          Accept: "application/json",
-                          "Content-Type": "application/json",
-                        },
+                        headers: { Authorization: `Bearer ${mobileToken}` },
                       })
                       .then((res) => {
-                        // Lấy từng item có barcodes + quantity_sold
                         const items = res.body.data.flatMap((item) =>
                           item.barcodes.map((barcode) => ({
                             barcode,
                             qty: item.quantity_sold,
                           }))
                         );
-                        cy.readFile("cypress/temp/itemsList.json", {
-                          log: false,
-                          timeout: 500,
-                          failOnNonExist: false,
-                        }).then((existingItems = []) => {
-                          const mergedItems = [...existingItems, ...items];
-                          cy.writeFile(
-                            "cypress/temp/itemsList.json",
-                            mergedItems
-                          );
+
+                        cy.readFile("cypress/temp/itemsList.json", { log: false, failOnNonExist: false }).then((existing = []) => {
+                          cy.writeFile("cypress/temp/itemsList.json", [...existing, ...items]);
                         });
 
-                        // Duyệt từng {barcode, qty}
+                        // Pick item
                         return cy.wrap(items).each(({ barcode, qty }) => {
+                          cy.log(`📦 Pick ${barcode} (${qty})`);
                           return cy
                             .request({
                               method: "PUT",
                               url: `${config.wmsUrl}/v1/trolley/detail/${pickupCode}`,
-                              headers: {
-                                Authorization: `Bearer ${mobileToken}`,
-                                Accept: "application/json",
-                                "Content-Type": "application/json",
-                              },
-                              body: {
-                                bin_code: bin,
-                                goods_code: barcode,
-                                quantity: qty,
-                              },
-                              failOnStatusCode: false,
+                              headers: { Authorization: `Bearer ${mobileToken}` },
+                              body: { bin_code: bin, goods_code: barcode, quantity: qty },
                             })
                             .then((resp) => {
                               expect(resp.status).to.eq(200);
                             });
                         });
                       });
-                  })
-                  //     // --- Commit status ---
-                  .then((res) => {
-                    cy.log(
-                      "assign bin ->",
-                      res.status,
-                      JSON.stringify(res.body)
-                    );
-
-                    return cy.request({
+                  });
+                })
+                .then(() => {
+                  cy.log("🚀 Commit trolley status...");
+                  return cy
+                    .request({
                       method: "PUT",
                       url: `${config.wmsUrl}/v1/trolley/commit-status/${pickupCode}`,
-                      headers: {
-                        authorization: mobileToken,
-                        accept: "application/json",
-                        "content-type": "application/json",
-                      },
-                      body: {
-                        trolley_code: trolleyCode, // ✅ lấy từ file
-                      },
-                      failOnStatusCode: false,
+                      headers: { Authorization: mobileToken },
+                      body: { trolley_code: trolleyCode },
+                    })
+                    .then((resp) => {
+                      expect(resp.status).to.eq(200);
+                      cy.log("✅ Commit thành công");
+                      return cy.wrap(pickupCode); // ✅ Trả lại giá trị đúng kiểu
                     });
-                  });
-              });
+                });
+            });
           });
         });
       });
     });
-  }
-
-  const maDonHang = "NHSVC2941744318, NHSVC2941591882";
+  });
+}
 
   function nhapBangKe(pickupCode) {
-    cy.visit(`${config.wmsUrl}/receive-packing-trolley`);
-    cy.get('input[placeholder="Quét mã XE/ bảng kê cần đóng gói"]')
+    return cy.visit(`${config.wmsUrl}/receive-packing-trolley`).then(() => {
+      cy.get('input[placeholder="Quét mã XE/ bảng kê cần đóng gói"]')
+      .should('be.visible')
       .type(pickupCode)
       .type("{enter}");
     cy.get("button.btn-warning")
       .contains("Nhận bảng kê")
       .click({ force: true });
+    })
+    
   }
   function dongGoiB2c(pickupCode) {
-    cy.intercept(
-      "PUT",
-      `${config.wmsUrl}/v1/pickup/commit-item-sold/${pickupCode}`
-    ).as("getTotalSold");
+  cy.intercept("PUT", `${config.wmsUrl}/v1/pickup/commit-item-sold/${pickupCode}`).as("commitItemSold");
+  
+  // 1. Chuẩn bị: Quét bàn và bảng kê
+  cy.visit(`${config.wmsUrl}/packing`);
+  cy.wait(1000);
+  cy.get('input[placeholder="Quét hoặc nhập mã bàn"]').should("be.visible").type(config.packing_table).type("{enter}");
+  cy.wait(1000);
+  cy.get('input[placeholder="Quét mã XE/ bảng kê xuất kho (Mã PK)"]').should("be.visible").type(pickupCode).type("{enter}");
+  cy.wait(2000);
 
-    cy.visit(`${config.wmsUrl}/packing`);
-    cy.wait(2000);
+  return cy.loginWMSAPI().then(() => {
+    const token = Cypress.env("token");
 
-    cy.get('input[placeholder="Quét hoặc nhập mã bàn"]')
-      .type(config.packing_table)
-      .type("{enter}");
-    cy.wait(2000);
+    // Lấy detail bảng kê
+    return cy.request({
+      method: "GET",
+      url: `${config.wmsUrl}/v1/pickup/detail/${pickupCode}`,
+      headers: { Authorization: `Bearer ${token}` },
+    }).then((pickupRes) => {
+      const pickupOrders = pickupRes.body?.data?.pickup_orders || [];
+      if (!pickupOrders.length) throw new Error(`❌ Không tìm thấy pickup_orders cho ${pickupCode}`);
 
-    cy.get('input[placeholder="Quét mã XE/ bảng kê xuất kho (Mã PK)"]')
-      .type(pickupCode)
-      .type("{enter}");
-    cy.wait(2000);
+      cy.log(`📦 Bảng kê ${pickupCode} có ${pickupOrders.length} đơn hàng. Bắt đầu đóng gói TỪNG ĐƠN...`);
 
-    cy.readFile("cypress/temp/itemsList.json").then((items) => {
-      cy.wrap(items).each(({ barcode }, index, list) => {
-        cy.log(`🔸 Bắt đầu scan sản phẩm: ${barcode}`);
+      // 2. DUYỆT QUA TỪNG ĐƠN HÀNG (SỬA Ở ĐÂY)
+      return cy.wrap(pickupOrders).each((order, index) => {
+        const orderCode = order.tracking_code;
+        cy.log(`\n\n--- 📦 BẮT ĐẦU XỬ LÝ ĐƠN: **${orderCode}** (${index + 1}/${pickupOrders.length}) ---`);
 
-        function scanItem() {
+        // --- BƯỚC A: QUÉT SẢN PHẨM (ITEM SCAN) ---
+        const scansForCurrentOrder = [];
+        order.list_items.forEach((item) => {
+          const barcode = item.goods_id?.barcodes?.[0];
+          const qtySold = Number(item.quantity_sold || 0);
+          const qtyPick = Number(item.quantity_pick || 0);
+          const needToScan = Math.max(0, qtySold - qtyPick);
+
+          if (barcode && needToScan > 0) {
+            for (let i = 0; i < needToScan; i++) {
+              scansForCurrentOrder.push({ barcode, orderCode });
+            }
+          }
+        });
+
+        cy.log(`🔍 Cần thực hiện **${scansForCurrentOrder.length}** lần quét sản phẩm cho đơn này.`);
+
+        // Thực hiện từng lần quét cho đơn hàng HIỆN TẠI
+        return cy.wrap(scansForCurrentOrder).each((scanItem, scanIndex) => {
+          cy.log(`\tScan item [${scanIndex + 1}/${scansForCurrentOrder.length}]: **${scanItem.barcode}**`);
+          
+          cy.wait(500);
           cy.get('input[placeholder="Quét mã sản phẩm"]', { timeout: 10000 })
             .should("be.visible")
-            .and("not.be.disabled")
             .clear()
-            .type(barcode)
+            .type(scanItem.barcode)
+            .type("{enter}");
+          
+          return cy.wait("@commitItemSold", { timeout: 15000 }).then(({ response }) => {
+            expect(response.statusCode).to.eq(200);
+          });
+        }).then(() => {
+          // --- BƯỚC B: QUÉT VẬT LIỆU ĐÓNG GÓI ---
+          cy.log(`\t✅ Hoàn tất quét sản phẩm. Bắt đầu quét vật liệu cho đơn **${orderCode}**`);
+          
+          // Giả định UI đã tự động chuyển sang trạng thái chờ quét vật liệu cho đơn này
+          cy.get('input[placeholder="Quét hoặc nhập mã vật liệu đóng gói"]', { timeout: 10000 })
+            .should("be.visible")
+            .type("40x20x20") // Mã vật liệu
             .type("{enter}");
 
-          // Chờ API phản hồi
-          cy.wait("@getTotalSold").then((interception) => {
-            const { total_sold, total_pick } = interception.response.body.data;
-            const remaining = total_sold - total_pick;
+          // Chờ cho đơn hàng được hoàn tất (thường sẽ có một API commit/complete sau bước này, nhưng hiện tại dùng wait)
+          cy.wait(6000); 
+          cy.log(`\t🎉 HOÀN TẤT ĐÓNG GÓI ĐƠN **${orderCode}**`);
+        });
 
-            cy.log(
-              `${barcode}: sold=${total_sold}, pick=${total_pick}, remaining=${remaining}`
-            );
-
-            if (remaining > 0) {
-              cy.wait(400); // cho API ổn định 1 chút
-              scanItem(); // 🔁 Gọi lại chính nó đến khi đủ
-            } else {
-              cy.log(`✅ Đã quét đủ ${barcode}, tiến hành quét vật liệu`);
-              cy.wait(3000);
-              cy.get(
-                'input[placeholder="Quét hoặc nhập mã vật liệu đóng gói"]',
-                { timeout: 10000 }
-              )
-                .should("be.visible")
-                .and("not.be.disabled")
-                .type("40x20x20")
-                .type("{enter}");
-
-              cy.wait(4000);
-
-              if (index === list.length - 1) {
-                cy.log("✅ Tất cả sản phẩm đã đóng gói xong");
-              }
-            }
-          });
-        }
-
-        // 🔹 Bắt đầu lần scan đầu tiên
-        scanItem();
-      });
-    });
-  }
-
-  it("Đọc order từ fixtures và xuất kho WMS", () => {
-    taoYeuCauXuatKho();
-    customizePickUpCondition();
-    listOrder(maDonHang);
-    layHang();
-    cy.readFile("cypress/temp/maDonHang.json").then(({ pickupCode }) => {
-      cy.log("pickupCode:", pickupCode);
-      nhapBangKe(pickupCode);
-      dongGoiB2c(pickupCode);
+      }); // Kết thúc vòng lặp đơn hàng
     });
   });
+}
+
+
+    it("Đọc order từ fixtures và xuất kho WMS", () => {
+  taoYeuCauXuatKho();
+  customizePickUpCondition();
+  listOrder(maDonHang);
+
+  return layHang().then((pickupCode) => {
+    cy.log("🚚 PickupCode đã tạo:", pickupCode);
+    return nhapBangKe(pickupCode).then(() => dongGoiB2c(pickupCode));
+  });
+});
+
+
 });
