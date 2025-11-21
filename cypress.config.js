@@ -5,9 +5,16 @@ const path = require("path");
 
 module.exports = defineConfig({
   e2e: {
+    chromeWebSecurity: false,
     setupNodeEvents(on, config) {
       // Ghi file kết quả CSV
       on("task", {
+        readJsonIfExists(filename) {
+          if (fs.existsSync(filename)) {
+            return JSON.parse(fs.readFileSync(filename, "utf8"));
+          }
+          return null; // Trả về null nếu file chưa tồn tại thay vì báo lỗi
+        },
         readXlsx({ file, sheet }) {
           const buf = fs.readFileSync(file);
           const workbook = xlsx.read(buf, { type: "buffer" });

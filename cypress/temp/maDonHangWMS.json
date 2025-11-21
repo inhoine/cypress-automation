@@ -1,0 +1,55 @@
+{
+  "danhSach": [
+    {
+      "maOMS": "MTC1763625012939",
+      "maWMS": "NHSVC2941399438",
+      "loaiDon": "Đơn B2C"
+    },
+    {
+      "maOMS": "MTC1763625026648",
+      "maWMS": "NHSVC2941469655",
+      "loaiDon": "Đơn B2C"
+    },
+    {
+      "maOMS": "MTC1763625039006",
+      "maWMS": "NHSVC2941541726",
+      "loaiDon": "Đơn B2C"
+    },
+    {
+      "maOMS": "MTC1763625051718",
+      "maWMS": "NHSVC2941614761",
+      "loaiDon": "Đơn B2C"
+    },
+    {
+      "maOMS": "MTC1763625064554",
+      "maWMS": "NHSVC2941686819",
+      "loaiDon": "Đơn B2C"
+    },
+    {
+      "maOMS": "MTC1763625077424",
+      "maWMS": "NHSVC2941759355",
+      "loaiDon": "Đơn B2C"
+    },
+    {
+      "maOMS": "MTC1763625090023",
+      "maWMS": "NHSVC2941826873",
+      "loaiDon": "Đơn B2C"
+    },
+    {
+      "maOMS": "MTC1763625102012",
+      "maWMS": "NHSVC2941899179",
+      "loaiDon": "Đơn B2C"
+    },
+    {
+      "maOMS": "MTC1763625114717",
+      "maWMS": "NHSVC2941971415",
+      "loaiDon": "Đơn B2C"
+    },
+    {
+      "maOMS": "MTC1763625127454",
+      "maWMS": "NHSVC2942039867",
+      "loaiDon": "Đơn B2C"
+    }
+  ],
+  "trolleyCode": "NNT1763625159205"
+}

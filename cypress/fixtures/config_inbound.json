@@ -1,0 +1,15 @@
+{
+  "omsUrl": "https://stg-oms.nandh.vn",
+  "wmsUrl": "https://stg-wms.nandh.vn",
+  "productsInbound": [
+  { "name": "MHASUS", "qty": 10},
+  { "name": "SPIDER", "qty": 5}
+  ],
+  "warehouse": "FC HN",
+  "omsSupplier": "Supplier A",
+  "maKien": "PN00001",
+  "length": 10,
+  "width": 10,
+  "height": 10,
+  "weight": 10
+}

@@ -12,7 +12,8 @@ describe("OMS - Tạo đơn & tạo vận đơn", () => {
       config = data;
     });
     cy.loginOMS().then(() => {
-      cy.selectNNTBusiness();
+      // cy.selectNNTBusiness();
+      cy.log("Login Thành công");
     });
     cy.visit("https://stg-oms.nandh.vn/orders-b2c");
   });
@@ -42,17 +43,31 @@ describe("OMS - Tạo đơn & tạo vận đơn", () => {
     cy.get("div.css-x1kfuk-control")
       .contains("Chọn địa chỉ lấy hàng")
       .click({ force: true });
-    cy.contains("p.fs-14.fw-medium.mb-0", "HCM Warehouse").click();
+    cy.contains("p.fs-14.fw-medium.mb-0", "FC HN").click();
     cy.log("Chọn địa chỉ lấy hàng thành công");
   }
 
-  function chonSanPhamTheoTen(tenSanPham) {
+  function chonSanPhamTheoTen(tenSanPham, qty, index = 0) {
     cy.get("div.css-hlgwow").contains("Chọn sản phẩm").click({ force: true });
     cy.get('[id^="react-select-"][id$="-listbox"]')
       .contains("div", tenSanPham)
       .click({ force: true });
-    cy.log("Chọn sản phẩm thành công");
-    cy.get('input[placeholder="Nhập số lượng"]').clear().type("1");
+    cy.log(`✅ Chọn sản phẩm ${tenSanPham} thành công`);
+    cy.get('input[placeholder="Nhập số lượng"]')
+      .eq(index)
+      .clear({ force: true })
+      .type(`${qty}`, { delay: 200 })
+      .should("have.value", `${qty}`);
+  }
+
+  // Chọn nhiều sản phẩm liên tiếp
+  function chonNhieuSanPham(products) {
+    products.forEach((product, index) => {
+      if (index > 0) {
+        cy.contains("button", "Thêm sản phẩm").click({ force: true });
+      }
+      chonSanPhamTheoTen(product.name, product.qty, index);
+    });
   }
 
   function chonLoaiHangHoa(loaiHangHoa) {
@@ -65,9 +80,9 @@ describe("OMS - Tạo đơn & tạo vận đơn", () => {
       .click({ force: true });
   }
 
-  function nhapMaThamChieu() {
+  function nhapMaDonHang() {
     const ma = "MTC" + Date.now();
-    cy.get('input[placeholder="Nhập mã tham chiếu"]')
+    cy.get('input[placeholder="Nhập mã đơn hàng"]')
       .type(ma)
       .should("have.value", ma);
     return cy.wrap(ma);
@@ -92,6 +107,13 @@ describe("OMS - Tạo đơn & tạo vận đơn", () => {
       .then((ma) => ma.trim());
   }
 
+  function btntaoDonHangVaXuLy() {
+    cy.get("button.btn-success")
+      .contains(/Tạo đơn|Create Order/)
+      .click();
+    cy.get("button.dropdown-item").contains("Tạo và xử lý đơn hàng").click();
+  }
+
   function xacNhanDonHang() {
     cy.wait(3000);
     cy.get("button.btn-success")
@@ -114,25 +136,38 @@ describe("OMS - Tạo đơn & tạo vận đơn", () => {
     cy.log("Tạo ván đơn thành công");
   }
 
+  // it("Tạo đơn OMS -> tạo vận đơn -> lưu mã ra fixtures", () => {
+  //   taoDonHang();
+  //   chonKhachHang();
+  //   chonKenhBanHang();
+  //   chonDiaChiLayHang();
+  //   chonNhieuSanPham(config.products);
+
+  //   nhapMaDonHang().then(() => {
+  //     nhapTiepTuc();
+  //     nhapBtntaoDonHang().then((maDonHang) => {
+  //       cy.log("Mã tham chiếu đã lưu:", maDonHang);
+  //       xacNhanDonHang();
+  //       selectFreeShipping();
+  //       cy.wait(1000);
+  //       taoVanDon();
+
+  //       // Lưu ra file để WMS đọc
+  //       cy.writeFile("cypress/temp/maDonHang.json", { maDonHang });
+  //     });
+  //   });
+  // });
+
   it("Tạo đơn OMS -> tạo vận đơn -> lưu mã ra fixtures", () => {
     taoDonHang();
     chonKhachHang();
     chonKenhBanHang();
     chonDiaChiLayHang();
-    chonSanPhamTheoTen(config.skuSanPham);
-    chonLoaiHangHoa(config.loaiHangHoa);
+    chonNhieuSanPham(config.products);
 
-    nhapMaThamChieu().then(() => {
+    nhapMaDonHang().then(() => {
       nhapTiepTuc();
-      nhapBtntaoDonHang().then((maThamChieu) => {
-        cy.log("Mã tham chiếu đã lưu:", maThamChieu);
-        xacNhanDonHang();
-        selectFreeShipping();
-        taoVanDon();
-
-        // Lưu ra file để WMS đọc
-        cy.writeFile("cypress/temp/maDonHang.json", { maThamChieu });
-      });
+      btntaoDonHangVaXuLy();
     });
   });
 });
@@ -346,177 +381,178 @@ describe("Scan QR", () => {
   });
 });
 
-// describe("Đóng gói đơn hàng bên WMS", () => {
-//   let config;
-//   beforeEach(() => {
-//     cy.fixture("config.json").then((data) => {
-//       config = data;
-//     });
-//     cy.loginWMSAPI();
-//   });
+describe("Đóng gói đơn hàng bên WMS", () => {
+  let config;
+  beforeEach(() => {
+    cy.fixture("config.json").then((data) => {
+      config = data;
+    });
+    cy.loginWMSAPI();
+  });
 
-//   function nhapBangKe(pickupCode) {
-//     cy.visit(`${config.wmsUrl}/receive-packing-trolley`);
-//     cy.get('input[placeholder="Quét mã XE/ bảng kê cần đóng gói"]')
-//       .type(pickupCode)
-//       .type("{enter}");
-//     cy.get("button.btn-warning")
-//       .contains("Nhận bảng kê")
-//       .click({ force: true });
-//   }
-//   function dongGoiB2c(pickupCode) {
-//     cy.intercept(
-//       "PUT",
-//       `${config.wmsUrl}/v1/pickup/commit-item-sold/${pickupCode}`
-//     ).as("getTotalSold");
-//     cy.visit(`${config.wmsUrl}/packing`);
-//     cy.wait(2000);
-//     cy.get('input[placeholder="Quét hoặc nhập mã bàn"]')
-//       .type(config.packing_table)
-//       .type("{enter}");
-//     cy.wait(2000);
-//     cy.get('input[placeholder="Quét mã XE/ bảng kê xuất kho (Mã PK)"]')
-//       .type(pickupCode)
-//       .type("{enter}");
-//     cy.wait(2000);
-//     cy.get('input[placeholder="Quét mã sản phẩm"]')
-//       .type(config.skuSanPham)
-//       .type("{enter}");
-//     cy.wait("@getTotalSold").then((interception) => {
-//       const totalSold = interception.response.body.data.total_sold;
-//       cy.log("totalSold:", totalSold);
-//       const totalPick = interception.response.body.data.total_pick;
-//       cy.log("totalPick:", totalPick);
-//       const remainingTotal = totalSold - totalPick;
+  function nhapBangKe(pickupCode) {
+    cy.visit(`${config.wmsUrl}/receive-packing-trolley`);
+    cy.get('input[placeholder="Quét mã XE/ bảng kê cần đóng gói"]')
+      .type(pickupCode)
+      .type("{enter}");
+    cy.get("button.btn-warning")
+      .contains("Nhận bảng kê")
+      .click({ force: true });
+  }
+  function dongGoiB2c(pickupCode) {
+    cy.intercept(
+      "PUT",
+      `${config.wmsUrl}/v1/pickup/commit-item-sold/${pickupCode}`
+    ).as("getTotalSold");
+    cy.visit(`${config.wmsUrl}/packing`);
+    cy.wait(2000);
+    cy.get('input[placeholder="Quét hoặc nhập mã bàn"]')
+      .type(config.packing_table)
+      .type("{enter}");
+    cy.wait(2000);
+    cy.get('input[placeholder="Quét mã XE/ bảng kê xuất kho (Mã PK)"]')
+      .type(pickupCode)
+      .type("{enter}");
+    cy.wait(2000);
+    cy.get('input[placeholder="Quét mã sản phẩm"]')
+      .type(config.skuSanPham)
+      .type("{enter}");
+    cy.wait("@getTotalSold").then((interception) => {
+      const totalSold = interception.response.body.data.total_sold;
+      cy.log("totalSold:", totalSold);
+      const totalPick = interception.response.body.data.total_pick;
+      cy.log("totalPick:", totalPick);
+      const remainingTotal = totalSold - totalPick;
 
-//       // Lặp lại hành động 'totalSold' lần
-//       for (let i = 0; i < remainingTotal; i++) {
-//         // Thực hiện hành động bạn muốn lặp
-//         // Ví dụ: Nhập lại mã sản phẩm và nhấn Enter
-//         cy.get('input[placeholder="Quét mã sản phẩm"]')
-//           .type(config.skuSanPham)
-//           .type("{enter}");
-//       }
-//     });
-//     cy.wait(2000);
-//     cy.get('input[placeholder="Quét hoặc nhập mã vật liệu đóng gói"]')
-//       .type("40x20x20")
-//       .type("{enter}");
-//   }
-//   it("Đóng gói đơn hàng", () => {
-//     cy.readFile("cypress/temp/maDonHang.json").then(({ pickupCode }) => {
-//       cy.log("pickupCode:", pickupCode);
-//       nhapBangKe(pickupCode);
-//       dongGoiB2c(pickupCode);
-//     });
-//   });
-// });
+      // Lặp lại hành động 'totalSold' lần
+      for (let i = 0; i < remainingTotal; i++) {
+        // Thực hiện hành động bạn muốn lặp
+        // Ví dụ: Nhập lại mã sản phẩm và nhấn Enter
+        cy.get('input[placeholder="Quét mã sản phẩm"]')
+          .type(config.skuSanPham)
+          .type("{enter}");
+      }
+    });
+    cy.wait(2000);
+    cy.get('input[placeholder="Quét hoặc nhập mã vật liệu đóng gói"]')
+      .type("40x20x20")
+      .type("{enter}");
+  }
+  it("Đóng gói đơn hàng", () => {
+    cy.readFile("cypress/temp/maDonHang.json").then(({ pickupCode }) => {
+      cy.log("pickupCode:", pickupCode);
+      nhapBangKe(pickupCode);
+      dongGoiB2c(pickupCode);
+    });
+  });
+});
 
-// describe("Bàn giao đơn hàng", () => {
-//   let config;
-//   beforeEach(() => {
-//     cy.fixture("config.json").then((data) => {
-//       config = data;
-//     });
-//     cy.loginWMS();
-//   });
-//   it("Should successfully add a handover entry via API", () => {
-//     cy.readFile("cypress/temp/maDonHang.json").then(({ maDonHang }) => {
-//       cy.loginMobileAPI().then(() => {
-//         const mobileToken = Cypress.env("mobileToken");
-//         cy.log("maDonHang:", maDonHang);
-//         const headers = {
-//           Host: "stg-wms.nandh.vn",
-//           accept: "Application/json",
-//           "content-type": "Application/json",
-//           authorization: mobileToken,
-//           "sentry-trace": "45b055a4fe3e4e7b817c992c7b44707c-8215bb3f684145b2-0",
-//           baggage:
-//             "sentry-environment=production,sentry-public_key=4874625b4fce1cc84a910625bdc01f8f,sentry-release=wms.nandh.vn%4038%2B6,sentry-trace_id=45b055a4fe3e4e7b817c992c7b44707c",
-//           "user-agent": "NHWMS/6 CFNetwork/3826.500.131 Darwin/24.5.0",
-//           "accept-language": "vi",
-//         };
-//         const body = {
-//           tracking_code: maDonHang,
-//           courier_code: "DFX",
-//           handover_code: null,
-//         };
+describe("Bàn giao đơn hàng", () => {
+  let config;
+  beforeEach(() => {
+    cy.fixture("config.json").then((data) => {
+      config = data;
+    });
+    cy.loginWMS();
+  });
+  it("Should successfully add a handover entry via API", () => {
+    cy.readFile("cypress/temp/maDonHang.json").then(({ maDonHang }) => {
+      cy.loginMobileAPI().then(() => {
+        const mobileToken = Cypress.env("mobileToken");
+        cy.log("maDonHang:", maDonHang);
+        const headers = {
+          Host: "stg-wms.nandh.vn",
+          accept: "Application/json",
+          "content-type": "Application/json",
+          authorization: mobileToken,
+          "sentry-trace": "45b055a4fe3e4e7b817c992c7b44707c-8215bb3f684145b2-0",
+          baggage:
+            "sentry-environment=production,sentry-public_key=4874625b4fce1cc84a910625bdc01f8f,sentry-release=wms.nandh.vn%4038%2B6,sentry-trace_id=45b055a4fe3e4e7b817c992c7b44707c",
+          "user-agent": "NHWMS/6 CFNetwork/3826.500.131 Darwin/24.5.0",
+          "accept-language": "vi",
+        };
+        const body = {
+          tracking_code: maDonHang,
+          courier_code: "DFX",
+          handover_code: null,
+        };
 
-//         // Gửi yêu cầu POST
-//         cy.request({
-//           method: "POST",
-//           url: "https://stg-wms.nandh.vn/v1/handover/add",
-//           headers: headers,
-//           body: body,
-//           failOnStatusCode: false,
-//         }).then((response) => {
-//           // Kiểm tra mã trạng thái
-//           expect(response.status).to.eq(200);
-//           cy.log("API Handover/add thành công:", response.body);
-//           const handover_code = response.body.data.handover_code;
-//           cy.log(`bin_code đã trích xuất: ${handover_code}`);
+        // Gửi yêu cầu POST
+        cy.request({
+          method: "POST",
+          url: "https://stg-wms.nandh.vn/v1/handover/add",
+          headers: headers,
+          body: body,
+          failOnStatusCode: false,
+        }).then((response) => {
+          // Kiểm tra mã trạng thái
+          expect(response.status).to.eq(200);
+          cy.log("API Handover/add thành công:", response.body);
+          const handover_code = response.body.data.handover_code;
+          cy.log(`bin_code đã trích xuất: ${handover_code}`);
 
-//           return cy
-//             .request({
-//               method: "PUT",
-//               url: `https://stg-wms.nandh.vn/v1/handover/approved/${handover_code}`,
-//               headers: {
-//                 Host: "stg-wms.nandh.vn",
-//                 Accept: "Application/json",
-//                 "Content-Type": "Application/json",
-//                 Authorization: mobileToken, // Sử dụng Bearer token
-//                 "sentry-trace":
-//                   "45b055a4fe3e4e7b817c992c7b44707c-8215bb3f684145b2-0",
-//                 baggage:
-//                   "sentry-environment=production,sentry-public_key=4874625b4fce1cc84a910625bdc01f8f,sentry-release=wms.nandh.vn%4038%2B6,sentry-trace_id=45b055a4fe3e4e7b817c992c7b44707c",
-//                 "user-agent": "NHWMS/6 CFNetwork/3826.500.131 Darwin/24.5.0",
-//                 "accept-language": "vi",
-//               },
-//               body: {
-//                 is_update_document: true,
-//                 list_document: [],
-//               },
-//             })
-//             .then((response) => {
-//               // Log kết quả để debug
-//               cy.log("Phản hồi API:", response.status, response.body);
-//               // Kiểm tra xem yêu cầu có thành công không (mã trạng thái 200)
-//               expect(response.status).to.eq(200);
-//               // Bạn có thể thêm các assertions khác ở đây để kiểm tra dữ liệu trả về
-//               // Ví dụ: expect(response.body.message).to.eq('Success');
-//               cy.request({
-//                 method: "PUT",
-//                 url: `https://stg-wms.nandh.vn/v1/handover/approved/${handover_code}`,
-//                 headers: {
-//                   Host: "stg-wms.nandh.vn",
-//                   Accept: "Application/json",
-//                   "Content-Type": "Application/json",
-//                   Authorization: mobileToken, // Sử dụng Bearer token
-//                   "sentry-trace":
-//                     "45b055a4fe3e4e7b817c992c7b44707c-8215bb3f684145b2-0",
-//                   baggage:
-//                     "sentry-environment=production,sentry-public_key=4874625b4fce1cc84a910625bdc01f8f,sentry-release=wms.nandh.vn%4038%2B6,sentry-trace_id=45b055a4fe3e4e7b817c992c7b44707c",
-//                   "user-agent": "NHWMS/6 CFNetwork/3826.500.131 Darwin/24.5.0",
-//                   "accept-language": "vi",
-//                 },
-//                 body: {
-//                   tracking_code: maDonHang,
-//                   is_update_drive: false,
-//                   delivery_drive_name: "hêhhe",
-//                   delivery_drive_phone: "5555",
-//                   delivery_drive_license_number: "hhhh",
-//                 },
-//               }).then((response) => {
-//                 // Log kết quả để debug
-//                 cy.log("Phản hồi API:", response.status, response.body);
-//                 // Kiểm tra xem yêu cầu có thành công không (mã trạng thái 200)
-//                 expect(response.status).to.eq(200);
-//                 // Bạn có thể thêm các assertions khác ở đây để kiểm tra dữ liệu trả về
-//                 // Ví dụ: expect(response.body.message).to.eq('Success');
-//               });
-//             });
-//         });
-//       });
-//     });
-//   });
-// });
+          return cy
+            .request({
+              method: "PUT",
+              url: `https://stg-wms.nandh.vn/v1/handover/approved/${handover_code}`,
+              headers: {
+                Host: "stg-wms.nandh.vn",
+                Accept: "Application/json",
+                "Content-Type": "Application/json",
+                Authorization: mobileToken, // Sử dụng Bearer token
+                "sentry-trace":
+                  "45b055a4fe3e4e7b817c992c7b44707c-8215bb3f684145b2-0",
+                baggage:
+                  "sentry-environment=production,sentry-public_key=4874625b4fce1cc84a910625bdc01f8f,sentry-release=wms.nandh.vn%4038%2B6,sentry-trace_id=45b055a4fe3e4e7b817c992c7b44707c",
+                "user-agent": "NHWMS/6 CFNetwork/3826.500.131 Darwin/24.5.0",
+                "accept-language": "vi",
+              },
+              body: {
+                is_update_document: true,
+                list_document: [],
+              },
+            })
+            .then((response) => {
+              // Log kết quả để debug
+              cy.log("Phản hồi API:", response.status, response.body);
+              // Kiểm tra xem yêu cầu có thành công không (mã trạng thái 200)
+              expect(response.status).to.eq(200);
+              // Bạn có thể thêm các assertions khác ở đây để kiểm tra dữ liệu trả về
+              // Ví dụ: expect(response.body.message).to.eq('Success');
+              cy.request({
+                method: "PUT",
+                url: `https://stg-wms.nandh.vn/v1/handover/approved/${handover_code}`,
+                headers: {
+                  Host: "stg-wms.nandh.vn",
+                  Accept: "Application/json",
+                  "Content-Type": "Application/json",
+                  Authorization: mobileToken, // Sử dụng Bearer token
+                  "sentry-trace":
+                    "45b055a4fe3e4e7b817c992c7b44707c-8215bb3f684145b2-0",
+                  baggage:
+                    "sentry-environment=production,sentry-public_key=4874625b4fce1cc84a910625bdc01f8f,sentry-release=wms.nandh.vn%4038%2B6,sentry-trace_id=45b055a4fe3e4e7b817c992c7b44707c",
+                  "user-agent": "NHWMS/6 CFNetwork/3826.500.131 Darwin/24.5.0",
+                  "accept-language": "vi",
+                },
+                body: {
+                  tracking_code: maDonHang,
+                  is_update_drive: false,
+                  delivery_drive_name: "hêhhe",
+                  delivery_drive_phone: "5555",
+                  delivery_drive_license_number: "hhhh",
+                },
+              }).then((response) => {
+                // Log kết quả để debug
+                cy.log("Phản hồi API:", response.status, response.body);
+                // Kiểm tra xem yêu cầu có thành công không (mã trạng thái 200)
+                expect(response.status).to.eq(200);
+                // Bạn có thể thêm các assertions khác ở đây để kiểm tra dữ liệu trả về
+                // Ví dụ: expect(response.body.message).to.eq('Success');
+              });
+            });
+        });
+      });
+    });
+    z;
+  });
+});

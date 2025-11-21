@@ -1,21 +1,18 @@
 describe("Inbound WMS", () => {
-  let config;
-  before(() => {
-    cy.fixture("config.json").then((data) => {
-      config = data;
+  let config_wms;
+  // Tải file config.json một lần duy nhất trước khi chạy test
+  beforeEach(() => {
+    cy.fixture("config_inbound.json").then((data) => {
+      config_wms = data;
     });
     cy.loginWMS();
     cy.wait(1000);
-    // cy.chonFC('FC HN');
   });
 
   function layMaDonNhapHang() {
     cy.readFile("cypress/temp/inBound.json").then(({ maThamChieuIB }) => {
       cy.log("Mã tham chiếu:", maThamChieuIB);
-
-      cy.visit(`${config.wmsUrl}/shipment`);
-
-      // Tìm phần tử <span> chứa mã tham chiếu
+      cy.visit(`${config_wms.wmsUrl}/shipment`);
       cy.contains("span", maThamChieuIB)
         .closest("tr")
         .find("a.link-secondary")
@@ -24,8 +21,6 @@ describe("Inbound WMS", () => {
           const trimmedMaDonHang = maDonHangIB.trim();
           cy.log("Mã đơn hàng:", trimmedMaDonHang);
           console.log("Mã đơn hàng:", trimmedMaDonHang);
-
-          // Sửa bộ chọn lỗi và sử dụng giá trị đã lấy được
           cy.get(`a[href^="/shipment/"]`)
             .contains(trimmedMaDonHang)
             .click({ force: true });
@@ -40,7 +35,7 @@ describe("Inbound WMS", () => {
         const mobileToken = Cypress.env("mobileToken");
         cy.request({
           method: "PUT",
-          url: `${config.wmsUrl}/v1/po/received-po-at-warehouse/${trimmedMaDonHang}/`,
+          url: `${config_wms.wmsUrl}/v1/po/received-po-at-warehouse/${trimmedMaDonHang}/`,
           headers: {
             authorization: mobileToken,
             accept: "application/json",
@@ -75,23 +70,23 @@ describe("Inbound WMS", () => {
 
   function kiemHangNhapKho() {
     cy.readFile("cypress/temp/inBound.json").then(({ trimmedMaDonHang }) => {
-      cy.visit(`${config.wmsUrl}/inspection`);
-      cy.get('input[placeholder="Quét hoặc nhập mã bàn"]').type(
-        "BAN-01{enter}"
-      );
+      cy.visit(`${config_wms.wmsUrl}/inspection`);
+      cy.get('input[placeholder="Quét hoặc nhập mã bàn"]').type("BAN01{enter}");
       cy.wait(1000);
       cy.get('input[placeholder="Quét mã PO"]').type(
         `${trimmedMaDonHang}{enter}`
       );
       cy.get('input[placeholder="Quét mã kiện"]').type(
-        `${config.maKien}{enter}`
+        `${config_wms.maKien}{enter}`
       );
 
-      // đặt function xử lý row ở đây
       function xuLyRow(index = 0) {
         cy.get("table.table.table-nowrap.mb-0 tbody tr").then(($rows) => {
           if (index >= $rows.length) {
             cy.log("✅ Đã xử lý hết tất cả các dòng");
+            cy.get("button.btn-success")
+              .contains("Hoàn tất phiên kiểm")
+              .click({ force: true });
             return;
           }
 
@@ -104,21 +99,37 @@ describe("Inbound WMS", () => {
               .then((poCode) => {
                 cy.log(`🔹 Đang xử lý dòng ${index + 1}: ${poCode.trim()}`);
               });
-
-            cy.get("button.btn-soft-secondary.dropdown").click({ force: true });
+            cy.get("button.btn-soft-secondary.dropdown").click({
+              force: true,
+            });
           });
 
           cy.contains("button.dropdown-item", "Kiểm hàng").click({
             force: true,
           });
-
           cy.get("div.text-muted.d-flex span")
             .invoke("text")
             .then((text) => {
               const maBarcode = text.trim();
               cy.log("Mã barcode là: " + maBarcode);
-
-              cy.get('input[name="quantity_goods_normal"]').clear().type("100");
+              const productsInbound = config_wms.productsInbound;
+              const productToFind = maBarcode.split("-")[0].trim();
+              const currentProduct = productsInbound.find(
+                (p) => p.name === productToFind
+              );
+              if (currentProduct) {
+                cy.get('input[name="quantity_goods_normal"]')
+                  .clear()
+                  .type(currentProduct.qty.toString());
+                cy.log(
+                  `✅ Tìm thấy sản phẩm ${currentProduct.name} với số lượng: ${currentProduct.qty}`
+                );
+              } else {
+                cy.log(
+                  `⚠️ Không tìm thấy sản phẩm tương ứng trong fixture: ${maBarcode}`
+                );
+                cy.get('input[name="quantity_goods_normal"]').clear().type("1");
+              }
               cy.get('input[placeholder="Chọn mã barcode"]').type(maBarcode);
               cy.wait(1000);
               const goodsFields = [
@@ -127,18 +138,14 @@ describe("Inbound WMS", () => {
                 { selector: 'input[name="goods_h"]', value: "10" },
                 { selector: 'input[name="goods_weight"]', value: "10" },
               ];
-
               goodsFields.forEach(({ selector, value }) => {
                 cy.get("body").then(($body) => {
                   const $el = $body.find(selector);
-
-                  if ($el.length > 0) {
-                    if (!$el.is(":disabled")) {
-                      cy.get(selector).clear().type(value);
-                      cy.log(`✅ Đã nhập ${value} vào ${selector}`);
-                    } else {
-                      cy.log(`⚠️ ${selector} bị disable, bỏ qua`);
-                    }
+                  if ($el.length > 0 && !$el.is(":disabled")) {
+                    cy.get(selector).clear().type(value);
+                    cy.log(`✅ Đã nhập ${value} vào ${selector}`);
+                  } else if ($el.length > 0) {
+                    cy.log(`⚠️ ${selector} bị disable, bỏ qua`);
                   } else {
                     cy.log(`⚠️ Không tìm thấy ${selector}, bỏ qua`);
                   }
@@ -146,14 +153,12 @@ describe("Inbound WMS", () => {
               });
               cy.wait(1000);
               cy.contains('button[type="button"]', "Kiểm hàng").click();
-
               cy.get("body").then(($body) => {
                 if (
                   $body.find('button.btn-light:contains("Bỏ qua")').length > 0
                 ) {
                   cy.contains("button.btn-light", "Bỏ qua").click();
                   cy.wait(1000);
-
                   if (
                     $body.find('button.btn-success:contains("Xác nhận")')
                       .length > 0
@@ -164,24 +169,14 @@ describe("Inbound WMS", () => {
                   }
                 }
               });
-
-              // Quét lại mã kiện để refresh danh sách
               cy.get('input[placeholder="Quét mã kiện"]')
                 .clear()
-                .type(`${config.maKien}{enter}`);
-
-              // gọi lại đệ quy cho row tiếp theo
+                .type(`${config_wms.maKien}{enter}`);
               cy.wait(1000);
               xuLyRow(index + 1);
             });
         });
-        // Hoàn tất phiên kiểm
-        cy.get("button.btn-success")
-          .contains("Hoàn tất phiên kiểm")
-          .click({ force: true });
       }
-
-      // gọi lần đầu tiên sau khi đã nhập kiện
       xuLyRow(0);
     });
   }

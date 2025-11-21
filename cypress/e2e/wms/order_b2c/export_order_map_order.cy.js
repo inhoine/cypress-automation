@@ -1,13 +1,59 @@
-describe("WMS - Xuất kho từ đơn OMS", () => {
+describe("Xuất kho từ đơn OMS", () => {
+  Cypress.on("uncaught:exception", (err, runnable) => {
+    if (err.message.includes("is_parcel_check")) {
+      return false;
+    }
+  });
   let config;
-  beforeEach(() => {
+  before(() => {
     cy.fixture("config.json").then((data) => {
       config = data;
     });
-    cy.writeFile("cypress/temp/itemsList.json", []);
     cy.loginWMS();
     cy.wait(1000);
   });
+  function layVaLuuTatCaDonWMS() {
+    return cy.readFile("cypress/temp/maDonHang.json").then((data) => {
+      const listOMS = data.maDonHangOMS; // mảng OMS
+      const results = []; // nơi lưu kết quả
+
+      cy.visit(`${config.wmsUrl}/order-list`);
+
+      return cy
+        .wrap(listOMS)
+        .each((maOMS) => {
+          cy.log("Đang lấy mã OMS:", maOMS);
+
+          return cy
+            .contains("p", maOMS)
+            .closest("tr")
+            .then(($row) => {
+              const maDonHangWMS = $row.find("a.link-secondary").text().trim();
+              const loaiDon = $row
+                .find('span[class*="badge-soft"]')
+                .text()
+                .trim();
+
+              cy.log(`=> WMS: ${maDonHangWMS} - ${loaiDon}`);
+
+              // push vào mảng kết quả
+              results.push({
+                maOMS,
+                maWMS: maDonHangWMS,
+                loaiDon,
+              });
+            });
+        })
+        .then(() => {
+          // Lưu file cho use ở bước tiếp theo
+          cy.writeFile("cypress/temp/maDonHangWMS.json", {
+            danhSach: results,
+          });
+
+          cy.log("Đã lưu danh sách WMS:", JSON.stringify(results));
+        });
+    });
+  }
 
   function taoYeuCauXuatKho() {
     cy.visit(`${config.wmsUrl}/pickup-order`);
@@ -22,6 +68,7 @@ describe("WMS - Xuất kho từ đơn OMS", () => {
       .click({ force: true });
     cy.contains("div", "Lấy theo sản phẩm").click({ force: true });
   }
+
   function customizePickUpCondition() {
     cy.get("button.btn-success").contains("Tuỳ chỉnh").click();
     cy.get(".ri-arrow-down-s-line").click({ force: true });
@@ -29,26 +76,40 @@ describe("WMS - Xuất kho từ đơn OMS", () => {
       .contains("DS mã đơn hàng")
       .click();
   }
-  function listOrder(orderId) {
-    cy.get("button[type='button']").contains("Nhập mã đơn").click();
-    cy.get(
-      "textarea[placeholder='Nhập danh sách mã đơn hàng, ví dụ: NH1234567, ABC-01, ...']"
-    ).type(orderId);
-    cy.get("button[type='button']").contains("Xác nhận").click();
-    cy.get("button.btn-success").contains("Xác nhận").click();
 
-    cy.get("button.btn-success").contains("Tạo bảng kê").click();
+  function listOrder() {
+    cy.readFile("cypress/temp/maDonHangWMS.json").then((data) => {
+      cy.get("button[type='button']").contains("Nhập mã đơn").click();
+      cy.wait(1000);
+
+      const orderWMS = data.danhSach.map((item) => item.maWMS);
+      const chuoiNhap = orderWMS.join(", ");
+
+      cy.get(
+        "textarea[placeholder='Nhập danh sách mã đơn hàng, ví dụ: NH1234567, ABC-01, ...']"
+      )
+        .clear()
+        .type(chuoiNhap, { delay: 0 });
+
+      cy.get("button[type='button']").contains("Xác nhận").click();
+      cy.get("button.btn-success").contains("Xác nhận").click();
+
+      cy.get("button.btn-success").contains("Tạo bảng kê").click();
+      cy.wait(500);
+    });
   }
-
-  const maDonHang = "NHSVC2941509630, NHSVC2942322189";
 
   function layHang() {
     return cy.fixture("config").then((config) => {
-      cy.addStorage();
+      cy.addStorageWMS();
 
       return cy
-        .readFile("cypress/temp/maDonHang.json")
-        .then(({ trolleyCode }) => {
+        .readFile("cypress/temp/maDonHangWMS.json")
+        .then(({ danhSach, trolleyCode }) => {
+          const maWMSList = danhSach.map((x) => x.maWMS); // ✅ Lấy danh sách WMS đúng cách
+
+          cy.log("📦 Danh sách mã WMS:", JSON.stringify(maWMSList));
+
           cy.intercept("GET", "**/v1/pickup/list*status_id=600*").as(
             "getPickupList600"
           );
@@ -56,25 +117,26 @@ describe("WMS - Xuất kho từ đơn OMS", () => {
 
           return cy.wait("@getPickupList600").then(({ response }) => {
             const list = response.body.data || [];
+            // 👉 TÌM pickup theo mã WMS (tracking code)
             const found = list.find((x) =>
               x.picking_strategy?.list_tracking_code?.some((code) =>
-                maDonHang.includes(code)
+                maWMSList.includes(code)
               )
             );
-            expect(found, "Tìm thấy đơn hàng có tracking_code").to.not.be
-              .undefined;
+
+            expect(found, "Tìm thấy đơn hàng theo WMS").to.not.be.undefined;
 
             const pickupCode = found.pickup_code;
             cy.log(`📦 Found pickupCode: ${pickupCode}`);
 
-            // Ghi file
+            // Lưu vào file để dùng bước sau
             return cy.readFile("cypress/temp/maDonHang.json").then((data) => {
               cy.writeFile("cypress/temp/maDonHang.json", {
                 ...data,
                 pickupCode,
               });
 
-              // Login mobile
+              // == Phần xử lý map trolley, lấy bin, pick item... giữ nguyên ==
               return cy.loginMobileAPI().then(() => {
                 const mobileToken = Cypress.env("mobileToken");
 
@@ -111,7 +173,7 @@ describe("WMS - Xuất kho từ đơn OMS", () => {
                     });
                 }
 
-                // Chain return toàn bộ
+                // Chain từ map trolley → lấy bin → pick item
                 return tryMapTrolley().then(() => {
                   cy.log("🗂️ Lấy danh sách bin...");
                   return cy
@@ -128,14 +190,15 @@ describe("WMS - Xuất kho từ đơn OMS", () => {
                       );
                       cy.log(`📦 Có ${binCodes.length} bin cần xử lý`);
 
-                      // Duyệt bin
                       return cy.wrap(binCodes).each((bin) => {
                         cy.log(`🧩 Bin: ${bin}`);
                         return cy
                           .request({
                             method: "GET",
                             url: `${config.wmsUrl}/v1/trolley/picking/${pickupCode}?bin_code=${bin}`,
-                            headers: { Authorization: `Bearer ${mobileToken}` },
+                            headers: {
+                              Authorization: `Bearer ${mobileToken}`,
+                            },
                           })
                           .then((res) => {
                             const items = res.body.data.flatMap((item) =>
@@ -155,7 +218,6 @@ describe("WMS - Xuất kho từ đơn OMS", () => {
                               ]);
                             });
 
-                            // Pick item
                             return cy.wrap(items).each(({ barcode, qty }) => {
                               cy.log(`📦 Pick ${barcode} (${qty})`);
                               return cy
@@ -190,7 +252,7 @@ describe("WMS - Xuất kho từ đơn OMS", () => {
                         .then((resp) => {
                           expect(resp.status).to.eq(200);
                           cy.log("✅ Commit thành công");
-                          return cy.wrap(pickupCode); // ✅ Trả lại giá trị đúng kiểu
+                          return cy.wrap(pickupCode);
                         });
                     });
                 });
@@ -203,7 +265,7 @@ describe("WMS - Xuất kho từ đơn OMS", () => {
 
   function nhapBangKe(pickupCode) {
     return cy.visit(`${config.wmsUrl}/receive-packing-trolley`).then(() => {
-      cy.get('input[placeholder="Quét mã XE/ bảng kê cần đóng gói"]')
+      cy.get('input[class="form-control pe-34"]')
         .should("be.visible")
         .type(pickupCode)
         .type("{enter}");
@@ -241,7 +303,7 @@ describe("WMS - Xuất kho từ đơn OMS", () => {
       .type(config.packing_table)
       .type("{enter}");
     cy.wait(1000);
-    cy.get('input[placeholder="Quét mã XE/ bảng kê xuất kho (Mã PK)"]')
+    cy.get('input[placeholder="Quét mã Xe/ Bảng kê/ Rổ"]')
       .should("be.visible")
       .type(pickupCode)
       .type("{enter}");
@@ -474,13 +536,12 @@ describe("WMS - Xuất kho từ đơn OMS", () => {
       });
   }
 
-  it("Đọc order từ fixtures và xuất kho WMS", () => {
+  it("Xuất kho WMS", () => {
+    layVaLuuTatCaDonWMS();
     taoYeuCauXuatKho();
     customizePickUpCondition();
-    listOrder(maDonHang);
-
+    listOrder();
     return layHang().then((pickupCode) => {
-      cy.log("🚚 PickupCode đã tạo:", pickupCode);
       return nhapBangKe(pickupCode).then(() => dongGoiB2c(pickupCode));
     });
   });

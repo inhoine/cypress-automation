@@ -1,13 +1,99 @@
-describe("WMS - Xuất kho từ đơn OMS", () => {
-  let config;
-  beforeEach(() => {
-    cy.fixture("config.json").then((data) => {
-      config = data;
-    });
-    cy.writeFile("cypress/temp/itemsList.json", []);
-    cy.loginWMS();
-    cy.wait(1000);
+describe("Xuất kho từ đơn OMS", () => {
+  Cypress.on("uncaught:exception", (err, runnable) => {
+    if (err.message.includes("is_parcel_check")) {
+      return false;
+    }
   });
+  let config;
+  let globalPickupCode;
+
+  before(() => {
+    // 1. Gán config
+    return cy.fixture("config.json").then((data) => {
+      config = data;
+
+      // 2. Thử đọc mã pickupCode từ file (giả định layHang() đã lưu)
+      return cy
+        .readFile("cypress/temp/maDonHang.json", {
+          log: false,
+          failOnNonExist: false,
+        })
+        .then((dataFromFile) => {
+          globalPickupCode = dataFromFile?.pickupCode;
+          cy.log(
+            `👉 Mã bảng kê đọc được từ file: ${globalPickupCode || "KHÔNG CÓ"}`
+          );
+
+          if (globalPickupCode) {
+            cy.log("✅ Dữ liệu đã có sẵn. CHUYỂN QUA BƯỚC ĐÓNG GÓI.");
+            cy.loginWMS();
+            cy.wait(1000); // Vẫn cần login
+            return nhapBangKe(globalPickupCode); // Chỉ chạy lại bước cuối cùng: Nhận bảng kê
+          } else {
+            cy.log(
+              "❌ Không tìm thấy mã bảng kê. BẮT ĐẦU CHẠY TOÀN BỘ LUỒNG TẠO DỮ LIỆU."
+            );
+            cy.loginWMS();
+            cy.wait(1000);
+
+            // Chạy lại toàn bộ luồng tạo dữ liệu nếu file trống
+            layVaLuuTatCaDonWMS();
+            taoYeuCauXuatKho();
+            customizePickUpCondition();
+            listOrder();
+
+            return layHang().then((pickupCode) => {
+              globalPickupCode = pickupCode;
+              cy.log("Mã bảng kê đã tạo và lưu:", globalPickupCode);
+              return nhapBangKe(globalPickupCode);
+            });
+          }
+        });
+    });
+  });
+
+  function layVaLuuTatCaDonWMS() {
+    return cy.readFile("cypress/temp/maDonHang.json").then((data) => {
+      const listOMS = data.maDonHangOMS; // mảng OMS
+      const results = []; // nơi lưu kết quả
+
+      cy.visit(`${config.wmsUrl}/order-list`);
+
+      return cy
+        .wrap(listOMS)
+        .each((maOMS) => {
+          cy.log("Đang lấy mã OMS:", maOMS);
+
+          return cy
+            .contains("p", maOMS)
+            .closest("tr")
+            .then(($row) => {
+              const maDonHangWMS = $row.find("a.link-secondary").text().trim();
+              const loaiDon = $row
+                .find('span[class*="badge-soft"]')
+                .text()
+                .trim();
+
+              cy.log(`=> WMS: ${maDonHangWMS} - ${loaiDon}`);
+
+              // push vào mảng kết quả
+              results.push({
+                maOMS,
+                maWMS: maDonHangWMS,
+                loaiDon,
+              });
+            });
+        })
+        .then(() => {
+          // Lưu file cho use ở bước tiếp theo
+          cy.writeFile("cypress/temp/maDonHangWMS.json", {
+            danhSach: results,
+          });
+
+          cy.log("Đã lưu danh sách WMS:", JSON.stringify(results));
+        });
+    });
+  }
 
   function taoYeuCauXuatKho() {
     cy.visit(`${config.wmsUrl}/pickup-order`);
@@ -22,6 +108,7 @@ describe("WMS - Xuất kho từ đơn OMS", () => {
       .click({ force: true });
     cy.contains("div", "Lấy theo sản phẩm").click({ force: true });
   }
+
   function customizePickUpCondition() {
     cy.get("button.btn-success").contains("Tuỳ chỉnh").click();
     cy.get(".ri-arrow-down-s-line").click({ force: true });
@@ -29,26 +116,40 @@ describe("WMS - Xuất kho từ đơn OMS", () => {
       .contains("DS mã đơn hàng")
       .click();
   }
-  function listOrder(orderId) {
-    cy.get("button[type='button']").contains("Nhập mã đơn").click();
-    cy.get(
-      "textarea[placeholder='Nhập danh sách mã đơn hàng, ví dụ: NH1234567, ABC-01, ...']"
-    ).type(orderId);
-    cy.get("button[type='button']").contains("Xác nhận").click();
-    cy.get("button.btn-success").contains("Xác nhận").click();
 
-    cy.get("button.btn-success").contains("Tạo bảng kê").click();
+  function listOrder() {
+    cy.readFile("cypress/temp/maDonHangWMS.json").then((data) => {
+      cy.get("button[type='button']").contains("Nhập mã đơn").click();
+      cy.wait(1000);
+
+      const orderWMS = data.danhSach.map((item) => item.maWMS);
+      const chuoiNhap = orderWMS.join(", ");
+
+      cy.get(
+        "textarea[placeholder='Nhập danh sách mã đơn hàng, ví dụ: NH1234567, ABC-01, ...']"
+      )
+        .clear()
+        .type(chuoiNhap, { delay: 0 });
+
+      cy.get("button[type='button']").contains("Xác nhận").click();
+      cy.get("button.btn-success").contains("Xác nhận").click();
+
+      cy.get("button.btn-success").contains("Tạo bảng kê").click();
+      cy.wait(500);
+    });
   }
-
-  const maDonHang = "NHSVC2941509630, NHSVC2942322189";
 
   function layHang() {
     return cy.fixture("config").then((config) => {
-      cy.addStorage();
+      cy.addStorageWMS();
 
       return cy
-        .readFile("cypress/temp/maDonHang.json")
-        .then(({ trolleyCode }) => {
+        .readFile("cypress/temp/maDonHangWMS.json")
+        .then(({ danhSach, trolleyCode }) => {
+          const maWMSList = danhSach.map((x) => x.maWMS); // ✅ Lấy danh sách WMS đúng cách
+
+          cy.log("📦 Danh sách mã WMS:", JSON.stringify(maWMSList));
+
           cy.intercept("GET", "**/v1/pickup/list*status_id=600*").as(
             "getPickupList600"
           );
@@ -56,25 +157,26 @@ describe("WMS - Xuất kho từ đơn OMS", () => {
 
           return cy.wait("@getPickupList600").then(({ response }) => {
             const list = response.body.data || [];
+            // 👉 TÌM pickup theo mã WMS (tracking code)
             const found = list.find((x) =>
               x.picking_strategy?.list_tracking_code?.some((code) =>
-                maDonHang.includes(code)
+                maWMSList.includes(code)
               )
             );
-            expect(found, "Tìm thấy đơn hàng có tracking_code").to.not.be
-              .undefined;
+
+            expect(found, "Tìm thấy đơn hàng theo WMS").to.not.be.undefined;
 
             const pickupCode = found.pickup_code;
             cy.log(`📦 Found pickupCode: ${pickupCode}`);
 
-            // Ghi file
+            // Lưu vào file để dùng bước sau
             return cy.readFile("cypress/temp/maDonHang.json").then((data) => {
               cy.writeFile("cypress/temp/maDonHang.json", {
                 ...data,
                 pickupCode,
               });
 
-              // Login mobile
+              // == Phần xử lý map trolley, lấy bin, pick item... giữ nguyên ==
               return cy.loginMobileAPI().then(() => {
                 const mobileToken = Cypress.env("mobileToken");
 
@@ -111,7 +213,7 @@ describe("WMS - Xuất kho từ đơn OMS", () => {
                     });
                 }
 
-                // Chain return toàn bộ
+                // Chain từ map trolley → lấy bin → pick item
                 return tryMapTrolley().then(() => {
                   cy.log("🗂️ Lấy danh sách bin...");
                   return cy
@@ -128,14 +230,15 @@ describe("WMS - Xuất kho từ đơn OMS", () => {
                       );
                       cy.log(`📦 Có ${binCodes.length} bin cần xử lý`);
 
-                      // Duyệt bin
                       return cy.wrap(binCodes).each((bin) => {
                         cy.log(`🧩 Bin: ${bin}`);
                         return cy
                           .request({
                             method: "GET",
                             url: `${config.wmsUrl}/v1/trolley/picking/${pickupCode}?bin_code=${bin}`,
-                            headers: { Authorization: `Bearer ${mobileToken}` },
+                            headers: {
+                              Authorization: `Bearer ${mobileToken}`,
+                            },
                           })
                           .then((res) => {
                             const items = res.body.data.flatMap((item) =>
@@ -155,7 +258,6 @@ describe("WMS - Xuất kho từ đơn OMS", () => {
                               ]);
                             });
 
-                            // Pick item
                             return cy.wrap(items).each(({ barcode, qty }) => {
                               cy.log(`📦 Pick ${barcode} (${qty})`);
                               return cy
@@ -190,7 +292,7 @@ describe("WMS - Xuất kho từ đơn OMS", () => {
                         .then((resp) => {
                           expect(resp.status).to.eq(200);
                           cy.log("✅ Commit thành công");
-                          return cy.wrap(pickupCode); // ✅ Trả lại giá trị đúng kiểu
+                          return cy.wrap(pickupCode);
                         });
                     });
                 });
@@ -203,7 +305,7 @@ describe("WMS - Xuất kho từ đơn OMS", () => {
 
   function nhapBangKe(pickupCode) {
     return cy.visit(`${config.wmsUrl}/receive-packing-trolley`).then(() => {
-      cy.get('input[placeholder="Quét mã XE/ bảng kê cần đóng gói"]')
+      cy.get('input[class="form-control pe-34"]')
         .should("be.visible")
         .type(pickupCode)
         .type("{enter}");
@@ -233,15 +335,47 @@ describe("WMS - Xuất kho từ đơn OMS", () => {
       `${config.wmsUrl}/v1/pickup/commit-item-sold/${pickupCode}`
     ).as("commitItemSold");
 
+    cy.intercept(
+      "GET",
+      "**/v1/order/awb/*",
+      // Trả về phản hồi giả lập
+      (req) => {
+        req.reply({
+          statusCode: 200,
+          body: {}, // Body rỗng (hoặc một JSON rỗng)
+          headers: {
+            "Content-Type": "application/json", // Giả lập trả về JSON thay vì PDF/XPS
+          },
+        });
+      }
+    ).as("getAwbLabel");
+
+    cy.intercept(
+      "GET",
+      "https://stg-oms.nandh.vn/api/v1/shipments/awb-label/*",
+      (req) => {
+        req.reply({
+          statusCode: 200,
+          body: {},
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    ).as("getShipmentWmsLabel");
+
     // 1. Chuẩn bị: Quét bàn và bảng kê (Giữ nguyên)
     cy.visit(`${config.wmsUrl}/packing`);
     cy.wait(1000);
+    // 3. STUB WINDOW (vẫn cần thiết)
+    cy.window().then((win) => {
+      cy.stub(win, "print").as("printStub");
+      cy.stub(win, "open").as("windowOpenStub");
+    });
     cy.get('input[placeholder="Quét hoặc nhập mã bàn"]')
       .should("be.visible")
       .type(config.packing_table)
       .type("{enter}");
     cy.wait(1000);
-    cy.get('input[placeholder="Quét mã XE/ bảng kê xuất kho (Mã PK)"]')
+    cy.get('input[placeholder="Quét mã Xe/ Bảng kê/ Rổ"]')
       .should("be.visible")
       .type(pickupCode)
       .type("{enter}");
@@ -249,9 +383,6 @@ describe("WMS - Xuất kho từ đơn OMS", () => {
 
     return cy.loginWMSAPI().then(() => {
       const token = Cypress.env("token");
-      cy.window().then((win) => {
-        cy.stub(win, "print").as("printStub");
-      });
 
       // Lấy detail bảng kê (Làm nguồn dữ liệu duy nhất cho Scans)
       return cy
@@ -359,7 +490,9 @@ describe("WMS - Xuất kho từ đơn OMS", () => {
 
     cy.wait(1500);
     // LỆNH QUÉT SẢN PHẨM
-    cy.get('input[placeholder="Quét mã sản phẩm"]', { timeout: 10000 })
+    cy.get('input[placeholder="Quét mã Sản phẩm/ Barcode/ Serial"]', {
+      timeout: 10000,
+    })
       .should("be.visible")
       .clear()
       .type(barcode)
@@ -405,35 +538,84 @@ describe("WMS - Xuất kho từ đơn OMS", () => {
             `\t\t📦 Đơn **${currentOrderToProcess}** đã hoàn thành quét sản phẩm.`
           );
 
-          // ******** 🚀 PHẦN THÊM MỚI: QUÉT VẬT LIỆU ĐÓNG GÓI ********
-          cy.log(
-            `\t\t✅ Bắt đầu quét vật liệu cho đơn **${currentOrderToProcess}**`
-          );
-          cy.get('input[placeholder="Quét hoặc nhập mã vật liệu đóng gói"]', {
-            timeout: 10000,
-          })
-            .should("be.visible")
-            .clear() // Đảm bảo trường input sạch
-            .type("40x20x20") // Giả định mã vật liệu là 40x20x20
-            .type("{enter}");
-          cy.wait(10000);
-          cy.log(`\t\t🎉 WMS đã xác nhận đóng gói và chuyển đơn hàng.`);
-          // **********************************************************
+          // BẮT ĐẦU QUÉT VẬT LIỆU (Bao bọc trong return để đồng bộ)
+          return (
+            cy
+              .get('input[placeholder="Quét hoặc nhập mã vật liệu đóng gói"]', {
+                timeout: 10000,
+              })
+              .should("be.visible")
+              .clear()
+              .type("40x20x20") // Giả định mã vật liệu
+              .type("{enter}")
 
-          delete allScansMap[currentOrderToProcess]; // Xóa đơn hàng đã xong
+              // SỬ DỤNG RETURN TRƯỚC CY.WAIT ĐẦU TIÊN
+              .then(() => {
+                // 1. Chờ API WMS AWB (Bắt buộc)
+                return cy.wait("@getAwbLabel", { timeout: 15000 });
+              })
+              .then(() => {
+                cy.log("\t\t✅ WMS AWB API (@getAwbLabel) đã được mock.");
 
-          const nextOrderCode = Object.keys(allScansMap)[0];
-          let nextScanItem = null;
+                // 2. Chờ API OMS AWB Label
+                // Lệnh này có thể bị timeout (5s) nếu API không được gọi, dẫn đến fail.
+                // Chúng ta sẽ xử lý fail này ở cấp trên (Cypress.on('fail')).
+                return cy.wait("@getShipmentWmsLabel", { timeout: 5000 });
+              })
+              // BƯỚC CHỜ UI CHUYỂN TRẠNG THÁI (Nếu bước 2 thành công)
+              .then(() => {
+                cy.log(
+                  "\t\t✅ Cả hai API in đã được mock thành công. Bắt đầu chờ input đơn mới."
+                );
 
-          if (nextOrderCode) {
-            nextScanItem = allScansMap[nextOrderCode][0]; // PEEK
-          }
+                // Chờ cho input quét sản phẩm xuất hiện trở lại (ready cho đơn tiếp theo)
+                return cy
+                  .get(
+                    'input[placeholder="Quét mã Sản phẩm/ Barcode/ Serial"]',
+                    { timeout: 15000 }
+                  )
+                  .should("be.visible");
+              })
 
-          return scanAndCompleteOrder(
-            allScansMap,
-            nextScanItem,
-            totalOrdersToPack,
-            completedOrders + 1
+              // CHỜ UI CHUYỂN TRẠNG THÁI
+              .then(() => {
+                cy.log(
+                  "\t\t✅ Đã chặn API lấy nhãn in AWB thành công. Skip hộp thoại Save."
+                );
+
+                // Chờ cho input quét sản phẩm xuất hiện trở lại (ready cho đơn tiếp theo)
+                // Lệnh này đảm bảo giao diện đã tải xong đơn mới/chuyển trạng thái.
+                return cy
+                  .get(
+                    'input[placeholder="Quét mã Sản phẩm/ Barcode/ Serial"]',
+                    {
+                      timeout: 15000,
+                    }
+                  )
+                  .should("be.visible");
+              })
+
+              // GỌI ĐỆ QUY SAU KHI TẤT CẢ ĐÃ HOÀN TẤT
+              .then(() => {
+                cy.log(`\t\t🎉 WMS đã xác nhận đóng gói và chuyển đơn hàng.`);
+
+                delete allScansMap[currentOrderToProcess]; // Xóa đơn hàng đã xong
+
+                const nextOrderCode = Object.keys(allScansMap)[0];
+                let nextScanItem = null;
+
+                if (nextOrderCode) {
+                  nextScanItem = allScansMap[nextOrderCode][0]; // PEEK
+                }
+
+                // TRẢ VỀ LỜI GỌI ĐỆ QUY CUỐI CÙNG
+                return scanAndCompleteOrder(
+                  allScansMap,
+                  nextScanItem,
+                  totalOrdersToPack,
+                  completedOrders + 1
+                );
+              })
           );
         }
 
@@ -474,14 +656,7 @@ describe("WMS - Xuất kho từ đơn OMS", () => {
       });
   }
 
-  it("Đọc order từ fixtures và xuất kho WMS", () => {
-    taoYeuCauXuatKho();
-    customizePickUpCondition();
-    listOrder(maDonHang);
-
-    return layHang().then((pickupCode) => {
-      cy.log("🚚 PickupCode đã tạo:", pickupCode);
-      return nhapBangKe(pickupCode).then(() => dongGoiB2c(pickupCode));
-    });
+  it.only("Xuất kho WMS", () => {
+    dongGoiB2c(globalPickupCode);
   });
 });

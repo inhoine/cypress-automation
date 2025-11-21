@@ -8,36 +8,25 @@
   
   "wmsUrl": "https://stg-wms.nandh.vn",
   "wmsUser": "thanh.nn@nandh.vn",
-  "wmsPassword": "Nhl@12345",
-  "warehouse_id": 34,
-  "tenFC": "FC HCM",
+  "wmsPassword": "Nhl@123456",
+  "warehouse_id": 3,
+  "tenFC": "FC HN",
 
   "opsUrl": "https://stg-ops.nandh.vn",
   "opsUser": "thanh.nn@nandh.vn",
   "opsPassword": "Nhl@12345",
 
 
-  "comment": "Tạo đơn hàng B2C",
-  "skuSanPham": "BGN",
-  "loaiHangHoa": "A",
-
   "comment1": "Mã bàn",
-  "packing_table": "BAN-01",
+  "packing_table": "BAN01",
 
-  "comment2": "Mã kiện",
-  "maKien": "PN00001",
+  "warehouse": "FC HN",
 
-  "comment3": "Sản phẩm nhập hàng",
-  "productsInbound": [
-    { "name": "YELLOWCAR", "qty": 4}
-  ],
-  "warehouse": "HCM Warehouse",
-  "omsSupplier": "BanDaiVN",
-
-  "comment4": "Tạo đơn B2B",
+  "comment4": "Tạo đơn",
   "products": [
-    { "name": "CGN", "qty": 30 },
-    { "name": "BGN", "qty": 30 }
+    { "name": "SPIDER", "qty": 10},
+    { "name": "MHMSI", "qty": 10}
+
   ],
   "comment4.1": "Cho số quantity_sold = với qty của product để lấy hàng cho đúng",
   "quantity_sold": 30

@@ -28,11 +28,13 @@
 
 Cypress.Commands.add("loginOMS", () => {
   cy.fixture("config").then((config) => {
-    cy.visit(config.omsUrl + "/login");
-    cy.get('input[name="email"]').type(config.omsUser);
-    cy.get('input[name="password"]').type(config.omsPassword);
-    cy.get('button[type="submit"]').click();
-    cy.url().should("include", "/dashboard");
+    cy.session("oms_session", () => {
+      cy.visit(config.omsUrl + "/login");
+      cy.get('input[name="email"]').type(config.omsUser);
+      cy.get('input[name="password"]').type(config.omsPassword);
+      cy.get('button[type="submit"]').click();
+      cy.url().should("include", "/dashboard");
+    });
   });
 });
 
@@ -57,10 +59,10 @@ Cypress.Commands.add("loginWMS", () => {
     cy.get(".mt-4 > .btn").contains("Đăng nhập").click();
     cy.wait(1000);
     cy.get("div.col-4.col-wh.col")
-      .contains(config.tenFC)
+      .contains(config.warehouse)
       .click({ force: true });
     cy.get('button[type="button"]')
-      .contains(config.tenFC)
+      .contains(config.warehouse)
       .click({ force: true });
   });
 });
@@ -113,6 +115,43 @@ Cypress.Commands.add("addStorage", () => {
     // ✅ Ghi trolleyCode vào file JSON
     cy.readFile("cypress/temp/maDonHang.json").then((data = {}) => {
       cy.writeFile("cypress/temp/maDonHang.json", {
+        ...data,
+        trolleyCode,
+      });
+    });
+
+    cy.log(`🛒 Đã tạo trolleyCode: ${trolleyCode}`);
+  });
+});
+
+Cypress.Commands.add("addStorageWMS", () => {
+  cy.fixture("config").then((config) => {
+    cy.visit(`${config.wmsUrl}/trolley?page=1&page_size=50`);
+
+    cy.get("button.add-btn")
+      .contains("Thêm thiết bị chứa hàng")
+      .click({ force: true });
+
+    // Random number
+    const randomNumber = Date.now(); // 0 -> 999
+    const trolleyCode = `NNT${randomNumber}`;
+
+    cy.get('input[name="trolley_code"]').type(trolleyCode);
+
+    cy.get("div.css-15tbpg6")
+      .contains("Chọn loại yêu cầu")
+      .click({ force: true });
+    cy.get('div[id^="react-select-"][id*="-option-"]')
+      .contains("Không ưu tiên")
+      .click({ force: true });
+
+    cy.get('button[type="submit"]')
+      .contains("Thêm thiết bị chứa hàng")
+      .click({ force: true });
+
+    // ✅ Ghi trolleyCode vào file JSON
+    cy.readFile("cypress/temp/maDonHangWMS.json").then((data = {}) => {
+      cy.writeFile("cypress/temp/maDonHangWMS.json", {
         ...data,
         trolleyCode,
       });

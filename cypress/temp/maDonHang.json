@@ -1,5 +1,7 @@
 {
-  "maSaved": "MTC1761719033889",
-  "trolleyCode": "NNT1762103083276",
-  "pickupCode": "149903"
+  "maDonHangOMS": [
+    "MTC1763699528983",
+    "MTC1763699544938",
+    "MTC1763699559220"
+  ]
 }

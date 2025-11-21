@@ -1,19 +1,20 @@
 describe("Nhập kho", () => {
   let config_oms;
   before(() => {
-    cy.fixture("config_oms.json").then((data) => {
+    cy.fixture("config_inbound.json").then((data) => {
       config_oms = data;
     });
-    cy.loginOMS();
+    cy.loginOMS().then(() => {
+      cy.visit(`${config_oms.omsUrl}/create-shipment-inbound`);
+    });
   });
 
   function chonKhoNhapHang() {
-    cy.visit(`${config_oms.omsUrl}/create-shipment-inbound`);
     cy.get(".css-hlgwow")
       .contains("Chọn địa chỉ lấy hàng")
       .click({ force: true });
     cy.get("#react-select-2-option-0")
-      .contains("HCM Warehouse")
+      .contains(config_oms.warehouse)
       .click({ force: true });
   }
 
@@ -36,77 +37,28 @@ describe("Nhập kho", () => {
     return cy.wrap(ma);
   }
 
-  // function nhapKhoiLuongKienHang(){
-  //   // Nhập khối lượng
-  //   cy.get('input[name="listPackage.0.packageWeight"]').type('20').should('have.value', '20');
-  //   // Nhập kích thước - độ dài
-  //   cy.get('input[name="listPackage.0.packageLength"]').type('10').should('have.value', '10');
-  //   // Nhập kích thước - độ rộng
-  //   cy.get('input[name="listPackage.0.packageWidth"]').type('10').should('have.value', '10');
-  //   // Nhập kích thước - độ cao
-  //   cy.get('input[name="listPackage.0.packageHeight"]').type('10').should('have.value', '10');
-  //   // Click btn để mở popup thêm sản phẩm
-  //   cy.get('p.mb-0.btn').contains('Thêm sản phẩm').click({ force: true });
-  //   // Click để hiển thị danh sách sản phẩm
-  //   cy.get('.css-hlgwow').contains('Chọn sản phẩm').click({ force: true });
-  //   // Chọn sản phẩm theo tên
-  //   cy.get('div[id$="-listbox"]').should('be.visible').within(() => {
-  //   cy.contains(config_oms.omsItemInbound).click({ force: true });
-  //   });
-  //   // Nhập số lượng cần nhập
-  //   cy.get('input[name="listProduct.0.productQty"]').clear().type('10').should('have.value', '10');
-  //   // Click btn xác nhận để xác nhận tt sản phẩm
-  //   cy.get('button[type="button"]').contains('Xác nhận').click({ force: true });
-  // }
+  function nhapKhoiLuongKienHang(length, width, height) {
+    cy.get('input[placeholder="Dài"]').type(length);
+    cy.get('input[placeholder="Rộng"]').type(width);
+    cy.get('input[placeholder="Cao"]').type(height);
 
-  function nhapKhoiLuongKienHang() {
-    // Nhập khối lượng và kích thước của kiện hàng
-    cy.get('input[name="listPackage.0.packageWeight"]')
-      .type("20")
-      .should("have.value", "20");
-    cy.get('input[name="listPackage.0.packageLength"]')
-      .type("10")
-      .should("have.value", "10");
-    cy.get('input[name="listPackage.0.packageWidth"]')
-      .type("10")
-      .should("have.value", "10");
-    cy.get('input[name="listPackage.0.packageHeight"]')
-      .type("10")
-      .should("have.value", "10");
+    const productsInbound = config_oms.productsInbound;
+    cy.contains("Thêm sản phẩm").click({ force: true });
 
-    // Lặp qua từng sản phẩm trong danh sách và thêm vào popup
-    // const products = [
-    //   { name: 'CGN', qty: 5 },
-    //   { name: 'BGN', qty: 5 }
-    // ];
-    cy.fixture("config_oms.json").then((data) => {
-      const products = data.products;
-      cy.contains("Thêm sản phẩm").click({ force: true });
-
-      products.forEach((product, index) => {
-        if (index > 0) {
-          // sau sản phẩm đầu tiên thì click "Thêm sản phẩm mới"
-          cy.contains("Thêm sản phẩm mới").click({ force: true });
-        }
-
-        // chọn field sản phẩm hiện tại (luôn chỉ có 1)
-        cy.get(".css-hlgwow").contains("Chọn sản phẩm").click({ force: true });
-
-        // chọn sản phẩm trong dropdown
-        cy.get('div[id^="react-select-"][id*="-option-"]')
-          .contains(product.name)
-          .click({ force: true });
-        // nhập số lượng cho sản phẩm hiện tại
-        cy.get(`input[name="listProduct.${index}.productQty"]`)
-          .clear()
-          .type(product.qty.toString())
-          .should("have.value", product.qty.toString());
-      });
-      // Sau khi thêm tất cả sản phẩm, click nút Xác nhận để đóng popup
-      cy.get('button[type="button"]')
-        .contains("Xác nhận")
+    productsInbound.forEach((product, index) => {
+      if (index > 0) {
+        cy.contains("Thêm sản phẩm mới").click({ force: true });
+      }
+      cy.get(".css-hlgwow").contains("Chọn sản phẩm").click({ force: true });
+      cy.get('div[id^="react-select-"][id*="-option-"]')
+        .contains(product.name)
         .click({ force: true });
+      cy.get(`input[name="listProduct.${index}.productQty"]`)
+        .clear()
+        .type(product.qty.toString())
+        .should("have.value", product.qty.toString());
     });
+    cy.get('button[type="button"]').contains("Xác nhận").click({ force: true });
   }
   function taoDonNhapKho() {
     // Nhấp nút tạo mới
@@ -123,9 +75,9 @@ describe("Nhập kho", () => {
     nhapMaThamChieuInbound().then((maThamChieuIB) => {
       cy.log("Mã tham chiếu đã lưu", maThamChieuIB);
       console.log("Mã tham chiếu đã lưu", maThamChieuIB);
-      nhapKhoiLuongKienHang();
-      taoDonNhapKho();
-      cy.writeFile("cypress/temp/inBound.json", { maThamChieuIB });
+      nhapKhoiLuongKienHang(10, 10, 10);
+      // taoDonNhapKho();
+      // cy.writeFile("cypress/temp/inBound.json", { maThamChieuIB });
     });
   });
 });
